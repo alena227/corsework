@@ -114,37 +114,37 @@ typedef struct {
     ButtonType type;
 } Button;
 Button main_menu_buttons[] = {
-     {"Новая игра", 0, 0, 0, 0, 0, 0, false, true, BUTTON_NEW_GAME},
-     {"Загрузить игру", 0, 0, 0, 0, 0, 0, false, true, BUTTON_LOAD_GAME},
-     {"Таблица лидеров", 0, 0, 0, 0, 0, 0, false, true, BUTTON_LEADERBOARD},
-     {"Выход", 0, 0, 0, 0, 0, 0, false, true, BUTTON_EXIT}
+     {"РќРѕРІР°СЏ РёРіСЂР°", 0, 0, 0, 0, 0, 0, false, true, BUTTON_NEW_GAME},
+     {"Р—Р°РіСЂСѓР·РёС‚СЊ РёРіСЂСѓ", 0, 0, 0, 0, 0, 0, false, true, BUTTON_LOAD_GAME},
+     {"РўР°Р±Р»РёС†Р° Р»РёРґРµСЂРѕРІ", 0, 0, 0, 0, 0, 0, false, true, BUTTON_LEADERBOARD},
+     {"Р’С‹С…РѕРґ", 0, 0, 0, 0, 0, 0, false, true, BUTTON_EXIT}
 };
 
 Button settings_menu_buttons[] = {
     {"10 x 10", 0, 0, 0, 0, 0, 0, true,  true, BUTTON_SIZE_10X10},
     {"15 x 15", 0, 0, 0, 0, 0, 0, false, true, BUTTON_SIZE_15X15},
-    {"Легко", 0, 0, 0, 0, 0, 0, false, true, BUTTON_EASY_DIFF},
-    {"Нормально", 0, 0, 0, 0, 0, 0, false, true, BUTTON_NORMAL_DIFF},
-    {"Сложно", 0, 0, 0, 0, 0, 0, false, true, BUTTON_HARD_DIFF},
-    {"Пользователь против компьютера", 0,0,0,0,0,0,true,true,BUTTON_USER_COMP},
-    {"Компьютер против компьютера", 0,0,0,0,0,0,false,true,BUTTON_COMP_COMP},
-    {"Начать", 0, 0, 0, 0, 0, 0, false, true, BUTTON_START},
-    {"В меню", 0, 0, 0, 0, 0, 0, false, true, BUTTON_EXIT_MENU}
+    {"Р›РµРіРєРѕ", 0, 0, 0, 0, 0, 0, false, true, BUTTON_EASY_DIFF},
+    {"РќРѕСЂРјР°Р»СЊРЅРѕ", 0, 0, 0, 0, 0, 0, false, true, BUTTON_NORMAL_DIFF},
+    {"РЎР»РѕР¶РЅРѕ", 0, 0, 0, 0, 0, 0, false, true, BUTTON_HARD_DIFF},
+    {"РџРѕР»СЊР·РѕРІР°С‚РµР»СЊ РїСЂРѕС‚РёРІ РєРѕРјРїСЊСЋС‚РµСЂР°", 0,0,0,0,0,0,true,true,BUTTON_USER_COMP},
+    {"РљРѕРјРїСЊСЋС‚РµСЂ РїСЂРѕС‚РёРІ РєРѕРјРїСЊСЋС‚РµСЂР°", 0,0,0,0,0,0,false,true,BUTTON_COMP_COMP},
+    {"РќР°С‡Р°С‚СЊ", 0, 0, 0, 0, 0, 0, false, true, BUTTON_START},
+    {"Р’ РјРµРЅСЋ", 0, 0, 0, 0, 0, 0, false, true, BUTTON_EXIT_MENU}
 };
 
 Button game_buttons[] = {
-    {"Радар", 0, 0, 0, 0, 0, 0, false, false, BUTTON_RADAR},
-    {"Расставить случайно", 0, 0, 0, 0, 0, 0, false, true,  BUTTON_PLACE_RANDOM},
-    {"Сохранить игру", 0, 0, 0, 0, 0, 0, false, false, BUTTON_SAVE_GAME},
-     {"В меню", 0, 0, 0, 0, 0, 0, false, true, BUTTON_EXIT_MENU}
+    {"Р Р°РґР°СЂ", 0, 0, 0, 0, 0, 0, false, false, BUTTON_RADAR},
+    {"Р Р°СЃСЃС‚Р°РІРёС‚СЊ СЃР»СѓС‡Р°Р№РЅРѕ", 0, 0, 0, 0, 0, 0, false, true,  BUTTON_PLACE_RANDOM},
+    {"РЎРѕС…СЂР°РЅРёС‚СЊ РёРіСЂСѓ", 0, 0, 0, 0, 0, 0, false, false, BUTTON_SAVE_GAME},
+     {"Р’ РјРµРЅСЋ", 0, 0, 0, 0, 0, 0, false, true, BUTTON_EXIT_MENU}
 };
 
 Button leaderboard_buttons[] = {
-    {"В меню", 0, 0, 0, 0, 0, 0, false, true, BUTTON_EXIT_MENU}
+    {"Р’ РјРµРЅСЋ", 0, 0, 0, 0, 0, 0, false, true, BUTTON_EXIT_MENU}
 };
 
 Button victory_buttons[] = {
-    {"В меню", 0, 0, 0, 0, 0, 0, false, true, BUTTON_EXIT_MENU}
+    {"Р’ РјРµРЅСЋ", 0, 0, 0, 0, 0, 0, false, true, BUTTON_EXIT_MENU}
 };
 typedef struct {
     short int startX;
@@ -160,9 +160,9 @@ typedef struct {
 } Player;
 
 const char* letters[15] = {
-    "А", "Б", "В", "Г", "Д",
-    "Е", "Ж", "З", "И", "К",
-    "Л", "М", "Н", "О", "П"
+    "Рђ", "Р‘", "Р’", "Р“", "Р”",
+    "Р•", "Р–", "Р—", "Р", "Рљ",
+    "Р›", "Рњ", "Рќ", "Рћ", "Рџ"
 };
 
 typedef enum {
@@ -353,7 +353,6 @@ int availableCells(GameState* game, CellState** grid, char grid_size) {
 }
 
 int main() {
-
     setlocale(LC_ALL, "Rus");
     GameState game = { 0 };
     game.current_mode = MENU;
@@ -373,7 +372,6 @@ int main() {
     game.current_difficult = EASY;
 
     if (initSDL(&game)) {
-
         return 1;
     }
 
@@ -392,16 +390,27 @@ int main() {
     bool win = false;
     char end_random = 1;
     SDL_Event event;
+
     while (!quit) {
         Uint64 current_time = SDL_GetTicks();
         float delta_time = (current_time - last_time) / 1000.0f;
         last_time = current_time;
         checkStorm(&game, delta_time);
+
         while (SDL_PollEvent(&event) != 0) {
             if (event.type == SDL_EVENT_QUIT) {
                 quit = 1;
             }
-            if (event.type == SDL_EVENT_MOUSE_BUTTON_DOWN) {
+            else if (event.type == SDL_EVENT_WINDOW_RESIZED) {
+                // РћР±РЅРѕРІР»СЏРµРј СЂР°Р·РјРµСЂС‹ СЌРєСЂР°РЅР°
+                game.screen_width = event.window.data1;
+                game.screen_height = event.window.data2;
+                // РџРµСЂРµСЃС‡РёС‚С‹РІР°РµРј СЂР°Р·РјРµСЂС‹ Рё РїРѕР·РёС†РёРё
+                initSDL(&game); // РџРѕРІС‚РѕСЂРЅРѕ РёРЅРёС†РёР°Р»РёР·РёСЂСѓРµРј СЂР°Р·РјРµСЂС‹
+                initMenu(&game); // РћР±РЅРѕРІР»СЏРµРј РїРѕР·РёС†РёРё РєРЅРѕРїРѕРє РјРµРЅСЋ
+                initGame(&game); // РћР±РЅРѕРІР»СЏРµРј РїРѕР·РёС†РёРё РєРЅРѕРїРѕРє РёРіСЂС‹
+            }
+            else if (event.type == SDL_EVENT_MOUSE_BUTTON_DOWN) {
                 short int mouseX = event.button.x;
                 short int mouseY = event.button.y;
 
@@ -422,17 +431,12 @@ int main() {
                             char* player_name;
 
                             if (!name_entered) {
-
                                 player_name = handleTextInput(&game);
-
                                 while (player_name == NULL) {
                                     player_name = handleTextInput(&game);
                                 }
-
                                 addPlayerToLeaderboard(&game, player_name, game.turns_count);
-
                                 free(player_name);
-
                                 name_entered = true;
                             }
                         }
@@ -573,14 +577,14 @@ int main() {
 
 char initSDL(GameState* game) {
     if (SDL_Init(SDL_INIT_VIDEO) < 0) {
-        SDL_Log("Ошибка при инициализации SDL: %s\n", SDL_GetError());
+        SDL_Log("РћС€РёР±РєР° РїСЂРё РёРЅРёС†РёР°Р»РёР·Р°С†РёРё SDL: %s\n", SDL_GetError());
         return 1;
     }
 
     SDL_DisplayID display = SDL_GetPrimaryDisplay();
     const SDL_DisplayMode* mode = SDL_GetCurrentDisplayMode(display);
     if (!mode) {
-        SDL_Log("Не удалось получить текущий режим дисплея: %s\n", SDL_GetError());
+        SDL_Log("РќРµ СѓРґР°Р»РѕСЃСЊ РїРѕР»СѓС‡РёС‚СЊ С‚РµРєСѓС‰РёР№ СЂРµР¶РёРј РґРёСЃРїР»РµСЏ: %s\n", SDL_GetError());
         return 1;
     }
 
@@ -619,30 +623,33 @@ char initSDL(GameState* game) {
     }
     game->window = SDL_CreateWindow("Sea battle SDL3", game->screen_width, game->screen_height, 0);
     if (game->window == NULL) {
-        SDL_Log("Ошибка при создании окна SDL: %s\n", SDL_GetError());
+        SDL_Log("РћС€РёР±РєР° РїСЂРё СЃРѕР·РґР°РЅРёРё РѕРєРЅР° SDL: %s\n", SDL_GetError());
         return 1;
     }
     game->renderer = SDL_CreateRenderer(game->window, NULL);
     if (game->renderer == NULL) {
-        SDL_Log("Ошибка при создании рендерера SDL: %s\n", SDL_GetError());
+        SDL_Log("РћС€РёР±РєР° РїСЂРё СЃРѕР·РґР°РЅРёРё СЂРµРЅРґРµСЂРµСЂР° SDL: %s\n", SDL_GetError());
         return 1;
     }
     if (TTF_Init() < 0) {
-        SDL_Log("Ошибка при инициализации TTF: %s\n", SDL_GetError());
+        SDL_Log("РћС€РёР±РєР° РїСЂРё РёРЅРёС†РёР°Р»РёР·Р°С†РёРё TTF: %s\n", SDL_GetError());
         return 1;
     }
     game->text_engine = TTF_CreateRendererTextEngine(game->renderer);
     if (game->text_engine == NULL) {
-        SDL_Log("Ошибка при создании TTF_RendererTextEngine: %s\n", SDL_GetError());
+        SDL_Log("РћС€РёР±РєР° РїСЂРё СЃРѕР·РґР°РЅРёРё TTF_RendererTextEngine: %s\n", SDL_GetError());
         return 1;
     }
     game->font = TTF_OpenFont("font.ttf", FONT_SIZE);
     if (game->font == NULL) {
-        SDL_Log("Не удалось загрузить шрифт: %s\n", SDL_GetError());
+        SDL_Log("РќРµ СѓРґР°Р»РѕСЃСЊ Р·Р°РіСЂСѓР·РёС‚СЊ С€СЂРёС„С‚: %s\n", SDL_GetError());
         return 1;
     }
     SDL_SetRenderDrawColor(game->renderer, 255, 255, 255, 255);
     return 0;
+
+    int base_font_size = (int)(game->screen_height * 0.04f);
+    game->font = TTF_OpenFont("font.ttf", base_font_size);
 }
 
 void closeSDL(GameState* game) {
@@ -669,29 +676,29 @@ void saveGame(GameState* game, char saveIndex) {
     strftime(buffer, sizeof(buffer), "%c - %I:%M%p - %H:%M", info);
     FILE* save_file = fopen(saveFile, "w");
     if (!save_file) {
-        printf("Ошибка сохранения.\n");
+        printf("РћС€РёР±РєР° СЃРѕС…СЂР°РЅРµРЅРёСЏ.\n");
         return;
     }
 
     fprintf(save_file,
-        "# ДАТА\n%s\n"
-        "# РАЗМЕР_СЕТКИ\n%c\n"
-        "# ОСТАЛОСЬ_РАДАРОВ\n%c\n"
-        "# СЛОЖНОСТЬ\n%c\n",
+        "# Р”РђРўРђ\n%s\n"
+        "# Р РђР—РњР•Р _РЎР•РўРљР\n%c\n"
+        "# РћРЎРўРђР›РћРЎР¬_Р РђР”РђР РћР’\n%c\n"
+        "# РЎР›РћР–РќРћРЎРўР¬\n%c\n",
         buffer,
         game->grid_size,
         game->radars_left,
         game->current_difficult
     );
 
-    fprintf(save_file, "# СЕТКА_ИГРОКА\n");
+    fprintf(save_file, "# РЎР•РўРљРђ_РР“Р РћРљРђ\n");
     for (int y = 0; y < game->grid_size; ++y) {
         for (int x = 0; x < game->grid_size; ++x) {
             fprintf(save_file, "%d ", game->player_grid[y][x]);
         }
         fprintf(save_file, "\n");
     }
-    fprintf(save_file, "# СЕТКА_ПРОТИВНИКА\n");
+    fprintf(save_file, "# РЎР•РўРљРђ_РџР РћРўРР’РќРРљРђ\n");
     for (int y = 0; y < game->grid_size; ++y) {
         for (int x = 0; x < game->grid_size; ++x) {
             fprintf(save_file, "%d ", game->enemy_grid[y][x]);
@@ -700,7 +707,7 @@ void saveGame(GameState* game, char saveIndex) {
     }
 
     fclose(save_file);
-    printf("Игра успешно сохранена.\n");
+    printf("РРіСЂР° СѓСЃРїРµС€РЅРѕ СЃРѕС…СЂР°РЅРµРЅР°.\n");
 }
 void loadSaves(GameState* game) {
     char saveFile[64];
@@ -733,7 +740,7 @@ SaveData parseSaveFile(GameState* game, const char* save_file) {
 
     FILE* file = fopen(save_file, "r");
     if (!file) {
-        printf("Не удалось открыть файл сохранения.\n");
+        printf("РќРµ СѓРґР°Р»РѕСЃСЊ РѕС‚РєСЂС‹С‚СЊ С„Р°Р№Р» СЃРѕС…СЂР°РЅРµРЅРёСЏ.\n");
         return save;
     }
 
@@ -744,25 +751,25 @@ SaveData parseSaveFile(GameState* game, const char* save_file) {
     short int row = 0;
 
     while (fgets(line, sizeof(line), file)) {
-        if (strstr(line, "# ДАТА")) {
+        if (strstr(line, "# Р”РђРўРђ")) {
             if (fgets(line, sizeof(line), file)) {
                 sscanf(line, "%s", &save.date);
             }
             continue;
         }
-        if (strstr(line, "# РАЗМЕР_СЕТКИ")) {
+        if (strstr(line, "# Р РђР—РњР•Р _РЎР•РўРљР")) {
             if (fgets(line, sizeof(line), file)) {
                 sscanf(line, "%c", &save.grid_size);
             }
             continue;
         }
-        if (strstr(line, "# ОСТАЛОСЬ_РАДАРОВ")) {
+        if (strstr(line, "# РћРЎРўРђР›РћРЎР¬_Р РђР”РђР РћР’")) {
             if (fgets(line, sizeof(line), file)) {
                 sscanf(line, "%c", &save.radars_count);
             }
             continue;
         }
-        if (strstr(line, "# СЛОЖНОСТЬ")) {
+        if (strstr(line, "# РЎР›РћР–РќРћРЎРўР¬")) {
             if (fgets(line, sizeof(line), file)) {
                 sscanf(line, "%c", &save.difficult);
             }
@@ -777,14 +784,14 @@ SaveData parseSaveFile(GameState* game, const char* save_file) {
     rewind(file);
 
     while (fgets(line, sizeof(line), file)) {
-        if (strstr(line, "# СЕТКА_ИГРОКА")) {
+        if (strstr(line, "# РЎР•РўРљРђ_РР“Р РћРљРђ")) {
             reading_player = 1;
             reading_enemy = 0;
             row = 0;
             continue;
         }
 
-        if (strstr(line, "# СЕТКА_ПРОТИВНИКА")) {
+        if (strstr(line, "# РЎР•РўРљРђ_РџР РћРўРР’РќРРљРђ")) {
             reading_player = 0;
             reading_enemy = 1;
             row = 0;
@@ -815,35 +822,42 @@ SaveData parseSaveFile(GameState* game, const char* save_file) {
 }
 
 void initMenu(GameState* game) {
-    int y = 200;
+    // РџСЂРѕС†РµРЅС‚РЅС‹Рµ РѕС‚СЃС‚СѓРїС‹ Рё СЂР°Р·РјРµСЂС‹
+    float button_width_ratio = MENU_BUTTON_WIDTH_RATIO; // 40% С€РёСЂРёРЅС‹ СЌРєСЂР°РЅР°
+    float button_height_ratio = MENU_BUTTON_HEIGHT_RATIO; // 5% РІС‹СЃРѕС‚С‹ СЌРєСЂР°РЅР°
+    float start_y_ratio = 0.2f; // РќР°С‡Р°Р»СЊРЅР°СЏ РїРѕР·РёС†РёСЏ РїРѕ Y (20% РѕС‚ РІРµСЂС…Р°)
+    float spacing_ratio = 0.07f; // РћС‚СЃС‚СѓРї РјРµР¶РґСѓ РєРЅРѕРїРєР°РјРё (7% РІС‹СЃРѕС‚С‹ СЌРєСЂР°РЅР°)
+
+    game->menu_button_width = (int)(game->screen_width * button_width_ratio);
+    game->menu_button_height = (int)(game->screen_height * button_height_ratio);
+
+    // Р“Р»Р°РІРЅРѕРµ РјРµРЅСЋ
     for (int i = 0; i < MAIN_BUTTONS_COUNT; ++i) {
-        main_menu_buttons[i].x_pos = game->screen_width / 2;
-        main_menu_buttons[i].y_pos = y;
+        main_menu_buttons[i].x_pos = game->screen_width / 2; // Р¦РµРЅС‚СЂ РїРѕ X
+        main_menu_buttons[i].y_pos = (int)(game->screen_height * (start_y_ratio + i * spacing_ratio));
 
         main_menu_buttons[i].left = main_menu_buttons[i].x_pos - game->menu_button_width / 2;
         main_menu_buttons[i].right = main_menu_buttons[i].x_pos + game->menu_button_width / 2;
         main_menu_buttons[i].top = main_menu_buttons[i].y_pos - game->menu_button_height / 2;
         main_menu_buttons[i].bottom = main_menu_buttons[i].y_pos + game->menu_button_height / 2;
-        y += game->menu_button_height + 50;
     }
-    y = 50;
 
+    // РњРµРЅСЋ РЅР°СЃС‚СЂРѕРµРє
     for (int i = 0; i < SETTINGS_BUTTONS_COUNT; ++i) {
         settings_menu_buttons[i].x_pos = game->screen_width / 2;
-        settings_menu_buttons[i].y_pos = y;
+        settings_menu_buttons[i].y_pos = (int)(game->screen_height * (start_y_ratio + i * spacing_ratio));
 
         settings_menu_buttons[i].left = settings_menu_buttons[i].x_pos - game->menu_button_width / 2;
         settings_menu_buttons[i].right = settings_menu_buttons[i].x_pos + game->menu_button_width / 2;
         settings_menu_buttons[i].top = settings_menu_buttons[i].y_pos - game->menu_button_height / 2;
         settings_menu_buttons[i].bottom = settings_menu_buttons[i].y_pos + game->menu_button_height / 2;
-
-        y += game->menu_button_height + 50;
     }
     settings_menu_buttons[2].is_pressed = true;
-    y = 200;
+
+    // РњРµРЅСЋ СЃРѕС…СЂР°РЅРµРЅРёР№
     for (int i = 0; i < MAX_SAVES; ++i) {
         game->saves_buttons[i].x_pos = game->screen_width / 2;
-        game->saves_buttons[i].y_pos = y;
+        game->saves_buttons[i].y_pos = (int)(game->screen_height * (start_y_ratio + i * spacing_ratio));
         game->saves_buttons[i].left = game->saves_buttons[i].x_pos - game->menu_button_width / 2;
         game->saves_buttons[i].right = game->saves_buttons[i].x_pos + game->menu_button_width / 2;
         game->saves_buttons[i].top = game->saves_buttons[i].y_pos - game->menu_button_height / 2;
@@ -851,21 +865,22 @@ void initMenu(GameState* game) {
         game->saves_buttons[i].type = BUTTON_SAVE_SLOT;
         game->saves_buttons[i].is_pressed = false;
         game->saves_buttons[i].is_active = true;
-        game->saves_buttons[i].label = (game->saves[i].date && game->saves[i].date[0] != '\0') ? game->saves[i].date : "Пусто";
-        y += game->menu_button_height + 50;
+        game->saves_buttons[i].label = (game->saves[i].date && game->saves[i].date[0] != '\0') ? game->saves[i].date : "РџСѓСЃС‚Рѕ";
     }
-    y = game->screen_height - 100;
+
+    // РљРЅРѕРїРєР° "Р’ РјРµРЅСЋ" РґР»СЏ С‚Р°Р±Р»РёС†С‹ Р»РёРґРµСЂРѕРІ
     leaderboard_buttons[0].x_pos = game->screen_width / 2;
-    leaderboard_buttons[0].y_pos = y;
+    leaderboard_buttons[0].y_pos = (int)(game->screen_height * 0.9f); // 90% РѕС‚ РІРµСЂС…Р°
     leaderboard_buttons[0].left = leaderboard_buttons[0].x_pos - game->menu_button_width / 2;
     leaderboard_buttons[0].right = leaderboard_buttons[0].x_pos + game->menu_button_width / 2;
     leaderboard_buttons[0].top = leaderboard_buttons[0].y_pos - game->menu_button_height / 2;
     leaderboard_buttons[0].bottom = leaderboard_buttons[0].y_pos + game->menu_button_height / 2;
     leaderboard_buttons[0].is_pressed = false;
     leaderboard_buttons[0].is_active = true;
-    y = 700;
+
+    // РљРЅРѕРїРєР° "Р’ РјРµРЅСЋ" РґР»СЏ СЌРєСЂР°РЅР° РїРѕР±РµРґС‹
     victory_buttons[0].x_pos = game->screen_width / 2;
-    victory_buttons[0].y_pos = y;
+    victory_buttons[0].y_pos = (int)(game->screen_height * 0.7f); // 70% РѕС‚ РІРµСЂС…Р°
     victory_buttons[0].left = victory_buttons[0].x_pos - game->menu_button_width / 2;
     victory_buttons[0].right = victory_buttons[0].x_pos + game->menu_button_width / 2;
     victory_buttons[0].top = victory_buttons[0].y_pos - game->menu_button_height / 2;
@@ -1609,7 +1624,8 @@ void drawButton(GameState* game, Button button) {
     }
 
     SDL_RenderFillRect(game->renderer, &buttonRect);
-    drawText(game, button.x_pos, button.y_pos, button.label, 24);
+    drawText(game, button.x_pos, button.y_pos, button.label, game->screen_height * 0.015f);
+
 }
 
 void drawCell(GameState* game, short int x, short int y, CellState state, short int x_offset, short int y_offset) {
@@ -1672,7 +1688,9 @@ void drawBoard(GameState* game, CellState** grid, char grid_size, short int x_of
 void drawText(GameState* game, short int x_offset, short int y_offset, const char* text, int font_size) {
     SDL_Surface* surface = NULL;
     SDL_Texture* texture = NULL;
-    TTF_SetFontSize(game->font, font_size);
+    int scaled_font_size = (int)(game->screen_height * (font_size / 1080.0f));
+    TTF_SetFontSize(game->font, scaled_font_size);
+
     SDL_Color color = { 0, 0, 0 };
     char* utf8_text = win1251_to_utf8(text);
     surface = TTF_RenderText_Solid(game->font, utf8_text, 0, color);
@@ -1696,104 +1714,113 @@ void drawBackground(GameState* game) {
 
 void renderGame(GameState* game, float delta_time) {
     drawBackground(game);
+    int font_size = (int)(game->screen_height * 0.03f); // Р Р°Р·РјРµСЂ С€СЂРёС„С‚Р° 3% РІС‹СЃРѕС‚С‹ СЌРєСЂР°РЅР°
+
+    // Р¤РѕРЅ РґР»СЏ С‚РµРєСЃС‚Р° Рё РєРЅРѕРїРѕРє
     SDL_SetRenderDrawColor(game->renderer, 242, 204, 195, 255);
-    SDL_FRect rect = { 0, 0, game->screen_width, 100 };
+    SDL_FRect rect = { 0, 0, game->screen_width, (int)(game->screen_height * 0.1f) }; // Р’РµСЂС…РЅРёРµ 10% СЌРєСЂР°РЅР°
     SDL_RenderFillRect(game->renderer, &rect);
     rect.h = game->screen_height;
-    rect.w = game->menu_button_width + 40;
+    rect.w = game->menu_button_width + (int)(game->screen_width * 0.05f); // 5% С€РёСЂРёРЅС‹ РґР»СЏ РѕС‚СЃС‚СѓРїР°
     SDL_RenderFillRect(game->renderer, &rect);
+
+    // РћС‚СЂРёСЃРѕРІРєР° РёРіСЂРѕРІС‹С… РїРѕР»РµР№ (Р±РµР· РёР·РјРµРЅРµРЅРёР№)
     drawBoard(game, game->player_grid, game->grid_size, game->player_x_offset, game->player_y_offset);
     drawBoard(game, game->enemy_grid, game->grid_size, game->enemy_x_offset, game->enemy_y_offset);
+
+    // РћС‚СЂРёСЃРѕРІРєР° РєРЅРѕРїРѕРє
     for (int i = 0; i < 4; ++i) {
         drawButton(game, game_buttons[i]);
     }
 
-
+    // РўРµРєСЃС‚ РІ Р·Р°РІРёСЃРёРјРѕСЃС‚Рё РѕС‚ СЂРµР¶РёРјР° РёРіСЂС‹
     if (game->current_mode == PLACING_SHIPS) {
         if (game->current_user.comp != 1) {
-            drawText(game, game->screen_width / 2, 10, "Выберите расположение своих кораблей.", FONT_SIZE);
+            drawText(game, game->screen_width / 2, (int)(game->screen_height * 0.05f), "Р’С‹Р±РµСЂРёС‚Рµ СЂР°СЃРїРѕР»РѕР¶РµРЅРёРµ СЃРІРѕРёС… РєРѕСЂР°Р±Р»РµР№.", font_size);
         }
         else {
-            drawText(game, game->screen_width / 2, 10, "Нажмите на любую клетку поля, чтобы начать игру Компьютер против Компьютера.", FONT_SIZE);
+            drawText(game, game->screen_width / 2, (int)(game->screen_height * 0.05f), "РќР°Р¶РјРёС‚Рµ РЅР° Р»СЋР±СѓСЋ РєР»РµС‚РєСѓ РїРѕР»СЏ, С‡С‚РѕР±С‹ РЅР°С‡Р°С‚СЊ РёРіСЂСѓ РљРѕРјРїСЊСЋС‚РµСЂ РїСЂРѕС‚РёРІ РљРѕРјРїСЊСЋС‚РµСЂР°.", font_size);
         }
     }
-
     else if (game->current_mode == PLAYING) {
         if (game->turns_count == 0) {
             if (game->current_user.comp != 1) {
-                drawText(game, game->screen_width / 2, 10, "Размещение завершено, начинайте игру!", FONT_SIZE);
+                drawText(game, game->screen_width / 2, (int)(game->screen_height * 0.05f), "Р Р°Р·РјРµС‰РµРЅРёРµ Р·Р°РІРµСЂС€РµРЅРѕ, РЅР°С‡РёРЅР°Р№С‚Рµ РёРіСЂСѓ!", font_size);
             }
             else {
-                drawText(game, game->screen_width / 2, 10, "Игра Компьютер против Компьютера началась!", FONT_SIZE);
+                drawText(game, game->screen_width / 2, (int)(game->screen_height * 0.05f), "РРіСЂР° РљРѕРјРїСЊСЋС‚РµСЂ РїСЂРѕС‚РёРІ РљРѕРјРїСЊСЋС‚РµСЂР° РЅР°С‡Р°Р»Р°СЃСЊ!", font_size);
             }
         }
         else {
             if (game->storm_active) {
-                drawText(game, game->screen_width / 2, 10, "Шторм! Случайная часть кораблей разрушена!", FONT_SIZE);
+                drawText(game, game->screen_width / 2, (int)(game->screen_height * 0.05f), "РЁС‚РѕСЂРј! РЎР»СѓС‡Р°Р№РЅР°СЏ С‡Р°СЃС‚СЊ РєРѕСЂР°Р±Р»РµР№ СЂР°Р·СЂСѓС€РµРЅР°!", font_size);
             }
             else {
                 if (game->player_turn) {
-                    drawText(game, game->screen_width / 2, 10, "Ваш ход.", FONT_SIZE);
+                    drawText(game, game->screen_width / 2, (int)(game->screen_height * 0.05f), "Р’Р°С€ С…РѕРґ.", font_size);
                 }
                 else {
-                    drawText(game, game->screen_width / 2, 10, "Ход компьютера.", FONT_SIZE);
+                    drawText(game, game->screen_width / 2, (int)(game->screen_height * 0.05f), "РҐРѕРґ РєРѕРјРїСЊСЋС‚РµСЂР°.", font_size);
                 }
 
                 if (game->fog_active) {
-                    drawText(game, game->screen_width / 2, 10 + FONT_SIZE, "Туман! Вы не можете увидеть, попали ли вы в корабль.", FONT_SIZE);
+                    drawText(game, game->screen_width / 2, (int)(game->screen_height * 0.08f), "РўСѓРјР°РЅ! Р’С‹ РЅРµ РјРѕР¶РµС‚Рµ СѓРІРёРґРµС‚СЊ, РїРѕРїР°Р»Рё Р»Рё РІС‹ РІ РєРѕСЂР°Р±Р»СЊ.", font_size);
                 }
                 else if (game->is_hit == -2) {
-                    drawText(game, game->screen_width / 2, 10 + FONT_SIZE, "о нет! мина", FONT_SIZE);
+                    drawText(game, game->screen_width / 2, (int)(game->screen_height * 0.08f), "Рѕ РЅРµС‚! РјРёРЅР°", font_size);
                 }
                 else if (game->is_hit >= 0) {
-                    drawText(game, game->screen_width / 2, 10 + FONT_SIZE, game->is_hit ? "Попали!" : "Промах", FONT_SIZE);
+                    drawText(game, game->screen_width / 2, (int)(game->screen_height * 0.08f), game->is_hit ? "РџРѕРїР°Р»Рё!" : "РџСЂРѕРјР°С…", font_size);
                 }
-
             }
         }
     }
-
     else if (game->current_mode == PLACING_RADAR) {
         if (!game->radar_running) {
-            drawText(game, game->screen_width / 2, 10, "Выберите расположение радара:", FONT_SIZE);
+            drawText(game, game->screen_width / 2, (int)(game->screen_height * 0.05f), "Р’С‹Р±РµСЂРёС‚Рµ СЂР°СЃРїРѕР»РѕР¶РµРЅРёРµ СЂР°РґР°СЂР°:", font_size);
         }
         else {
-            drawText(game, game->screen_width / 2, 10, "Проверка радара...", FONT_SIZE);
+            drawText(game, game->screen_width / 2, (int)(game->screen_height * 0.05f), "РџСЂРѕРІРµСЂРєР° СЂР°РґР°СЂР°...", font_size);
             drawRadar(game, delta_time);
         }
     }
     else if (game->current_mode == PLACING_MINES) {
-        drawText(game, game->screen_width / 2, 10, "Выберите расположение мин:", FONT_SIZE);
+        drawText(game, game->screen_width / 2, (int)(game->screen_height * 0.05f), "Р’С‹Р±РµСЂРёС‚Рµ СЂР°СЃРїРѕР»РѕР¶РµРЅРёРµ РјРёРЅ:", font_size);
     }
+
     if (game->current_user.comp != 1) {
         drawText(game, game->player_x_offset + (game->cell_size * game->grid_size) / 2,
-            game->player_y_offset - FONT_SIZE - 50, "Ваше поле", FONT_SIZE);
+            game->player_y_offset - (int)(game->screen_height * 0.1f), "Р’Р°С€Рµ РїРѕР»Рµ", font_size);
     }
+
     drawStormEffect(game);
     SDL_RenderPresent(game->renderer);
 }
 
 void renderMenu(GameState* game) {
     drawBackground(game);
+    int font_size = (int)(game->screen_height * 0.015f); // Р Р°Р·РјРµСЂ С€СЂРёС„С‚Р° 3% РІС‹СЃРѕС‚С‹ СЌРєСЂР°РЅР°
+    int title_font_size = (int)(game->screen_height * 0.04f); // Р—Р°РіРѕР»РѕРІРѕРє 4% РІС‹СЃРѕС‚С‹ СЌРєСЂР°РЅР°
+
     if (game->menu_state == MAIN_MENU) {
-        drawText(game, game->screen_width / 2, 100, "Морской бой с бонусами", FONT_SIZE + 10);
+        drawText(game, game->screen_width / 2, (int)(game->screen_height * 0.1f), "РњРѕСЂСЃРєРѕР№ Р±РѕР№ СЃ Р±РѕРЅСѓСЃР°РјРё", title_font_size);
         for (int i = 0; i < MAIN_BUTTONS_COUNT; ++i) {
             drawButton(game, main_menu_buttons[i]);
         }
-        short int y_pos = main_menu_buttons[MAIN_BUTTONS_COUNT - 1].y_pos + game->menu_button_height + 100;
-        drawText(game, game->screen_width / 2, y_pos, "о программе:", FONT_SIZE);
-        y_pos += 40;
-        drawText(game, game->screen_width / 2, y_pos, "Геймдевы: Дмитриева А.В. и Виноградова А.Д.", FONT_SIZE - 4);
-        y_pos += 30;
-        drawText(game, game->screen_width / 2, y_pos, "При наставничестве Панкова И. Д.", FONT_SIZE - 4);
-        y_pos += 30;
-        drawText(game, game->screen_width / 2, y_pos, "Санкт-Петербургский Политехнический Университет Петра Великого", FONT_SIZE - 4);
-        y_pos += 30;
-        drawText(game, game->screen_width / 2, y_pos, "Институт компьютерных наук и кибербезопасности", FONT_SIZE - 4);
-        y_pos += 30;
-        drawText(game, game->screen_width / 2, y_pos, "Высшая школа кибербезопасности", FONT_SIZE - 4);
-        y_pos += 30;
-        drawText(game, game->screen_width / 2, y_pos, "2025", FONT_SIZE - 4);
+        float y_pos = main_menu_buttons[MAIN_BUTTONS_COUNT - 1].y_pos + game->menu_button_height + (int)(game->screen_height * 0.05f);
+        drawText(game, game->screen_width / 2, (int)y_pos, "Рѕ РїСЂРѕРіСЂР°РјРјРµ:", font_size);
+        y_pos += game->screen_height * 0.03f;
+        drawText(game, game->screen_width / 2, (int)y_pos, "Р“РµР№РјРґРµРІС‹: Р”РјРёС‚СЂРёРµРІР° Рђ.Р’. Рё Р’РёРЅРѕРіСЂР°РґРѕРІР° Рђ.Р”.", font_size - 4);
+        y_pos += game->screen_height * 0.03f;
+        drawText(game, game->screen_width / 2, (int)y_pos, "РџСЂРё РЅР°СЃС‚Р°РІРЅРёС‡РµСЃС‚РІРµ РџР°РЅРєРѕРІР° Р. Р”.", font_size - 4);
+        y_pos += game->screen_height * 0.03f;
+        drawText(game, game->screen_width / 2, (int)y_pos, "РЎР°РЅРєС‚-РџРµС‚РµСЂР±СѓСЂРіСЃРєРёР№ РџРѕР»РёС‚РµС…РЅРёС‡РµСЃРєРёР№ РЈРЅРёРІРµСЂСЃРёС‚РµС‚ РџРµС‚СЂР° Р’РµР»РёРєРѕРіРѕ", font_size - 4);
+        y_pos += game->screen_height * 0.03f;
+        drawText(game, game->screen_width / 2, (int)y_pos, "РРЅСЃС‚РёС‚СѓС‚ РєРѕРјРїСЊСЋС‚РµСЂРЅС‹С… РЅР°СѓРє Рё РєРёР±РµСЂР±РµР·РѕРїР°СЃРЅРѕСЃС‚Рё", font_size - 4);
+        y_pos += game->screen_height * 0.03f;
+        drawText(game, game->screen_width / 2, (int)y_pos, "Р’С‹СЃС€Р°СЏ С€РєРѕР»Р° РєРёР±РµСЂР±РµР·РѕРїР°СЃРЅРѕСЃС‚Рё", font_size - 4);
+        y_pos += game->screen_height * 0.03f;
+        drawText(game, game->screen_width / 2, (int)y_pos, "2025", font_size - 4);
     }
     else if (game->menu_state == SETTINGS_MENU) {
         for (int i = 0; i < SETTINGS_BUTTONS_COUNT; ++i) {
@@ -1807,58 +1834,52 @@ void renderMenu(GameState* game) {
         drawButton(game, leaderboard_buttons[0]);
     }
     else if (game->menu_state == LEADERBOARD_MENU) {
-        short int nameColX = game->screen_width / 2 - 200;
-        short int scoreColX = game->screen_width / 2 + 200;
-        short int x = game->screen_width / 2;
-        short int y = 150;
-        short int row_height = 50;
+        float name_col_x = game->screen_width * 0.3f; // 30% РѕС‚ Р»РµРІРѕРіРѕ РєСЂР°СЏ
+        float score_col_x = game->screen_width * 0.7f; // 70% РѕС‚ Р»РµРІРѕРіРѕ РєСЂР°СЏ
+        float y_pos = game->screen_height * 0.15f; // РќР°С‡Р°Р»Рѕ С‚Р°Р±Р»РёС†С‹ РЅР° 15% РІС‹СЃРѕС‚С‹
+        float row_height = game->screen_height * 0.05f; // Р’С‹СЃРѕС‚Р° СЃС‚СЂРѕРєРё 5%
 
-        drawText(game, nameColX, y - row_height, "Имя", FONT_SIZE);
-        drawText(game, scoreColX, y - row_height, "Очки", FONT_SIZE);
+        drawText(game, (int)name_col_x, (int)(y_pos - row_height), "РРјСЏ", font_size);
+        drawText(game, (int)score_col_x, (int)(y_pos - row_height), "РћС‡РєРё", font_size);
 
         for (int i = 0; i < MAX_PLAYERS; ++i) {
             if (game->leaderboard[i].name[0] == '\0' || game->leaderboard[i].score == -1) {
                 continue;
             }
-
             char scoreText[16];
             snprintf(scoreText, sizeof(scoreText), "%hd", game->leaderboard[i].score);
-
-            drawText(game, nameColX, y + i * row_height, game->leaderboard[i].name, FONT_SIZE);
-            drawText(game, scoreColX, y + i * row_height, scoreText, FONT_SIZE);
+            drawText(game, (int)name_col_x, (int)(y_pos + i * row_height), game->leaderboard[i].name, font_size);
+            drawText(game, (int)score_col_x, (int)(y_pos + i * row_height), scoreText, font_size);
         }
-
         drawButton(game, leaderboard_buttons[0]);
     }
     else if (game->menu_state == VICTORY_MENU) {
         if (game->computer_win != 1) {
             if (game->current_user.comp != 1) {
-                drawText(game, game->screen_width / 2, game->screen_height / 4, "Вы победили! Введите ваше имя на английском, иначе вы не попадете в таблицу лидеров:", FONT_SIZE);
-
+                drawText(game, game->screen_width / 2, (int)(game->screen_height * 0.25f), "Р’С‹ РїРѕР±РµРґРёР»Рё! Р’РІРµРґРёС‚Рµ РІР°С€Рµ РёРјСЏ РЅР° Р°РЅРіР»РёР№СЃРєРѕРј, РёРЅР°С‡Рµ РІС‹ РЅРµ РїРѕРїР°РґРµС‚Рµ РІ С‚Р°Р±Р»РёС†Сѓ Р»РёРґРµСЂРѕРІ:", font_size);
                 SDL_FRect inputRect = {
-                    game->screen_width / 2 - 600 / 2,
-                    game->screen_height / 2 - 32 / 2,
-                    600,
-                    32 };
-
+                    game->screen_width * 0.5f - (game->screen_width * 0.3f) / 2, // 30% С€РёСЂРёРЅС‹ СЌРєСЂР°РЅР°
+                    game->screen_height * 0.5f - (game->screen_height * 0.05f) / 2, // 5% РІС‹СЃРѕС‚С‹
+                    game->screen_width * 0.3f,
+                    game->screen_height * 0.05f
+                };
                 SDL_SetRenderDrawColor(game->renderer, 140, 173, 167, 255);
                 SDL_RenderFillRect(game->renderer, &inputRect);
             }
             else {
-                drawText(game, game->screen_width / 2, game->screen_height / 4, "Компьютер 1 победил!", FONT_SIZE);
+                drawText(game, game->screen_width / 2, (int)(game->screen_height * 0.25f), "РљРѕРјРїСЊСЋС‚РµСЂ 1 РїРѕР±РµРґРёР»!", font_size);
             }
         }
         else {
             if (game->current_user.comp != 1) {
-                drawText(game, game->screen_width / 2, game->screen_height / 4, "Компьютер победил!", FONT_SIZE);
+                drawText(game, game->screen_width / 2, (int)(game->screen_height * 0.25f), "РљРѕРјРїСЊСЋС‚РµСЂ РїРѕР±РµРґРёР»!", font_size);
             }
             else {
-                drawText(game, game->screen_width / 2, game->screen_height / 4, "Компьютер 2 победил!", FONT_SIZE);
+                drawText(game, game->screen_width / 2, (int)(game->screen_height * 0.25f), "РљРѕРјРїСЊСЋС‚РµСЂ 2 РїРѕР±РµРґРёР»!", font_size);
             }
         }
         victory_buttons[0].is_active = true;
         drawButton(game, victory_buttons[0]);
-
     }
 }
 
@@ -2000,7 +2021,7 @@ void handleButtonClick(GameState* game, Button* button) {
 
     case BUTTON_EXIT_MENU:
         saveLeaderBoard(game);
-        printf("Нажата кнопка выхода\n");
+        printf("РќР°Р¶Р°С‚Р° РєРЅРѕРїРєР° РІС‹С…РѕРґР°\n");
         game->current_mode = MENU;
         game->menu_state = MAIN_MENU;
         game->computer_win = 0;
@@ -2099,32 +2120,25 @@ char* handleTextInput(GameState* game) {
 }
 
 void initGame(GameState* game) {
-    short int x = 150;
-    short int y = 200;
-    game_buttons[1].x_pos = x;
-    game_buttons[1].y_pos = y;
-    game_buttons[1].left = game_buttons[1].x_pos - game->menu_button_width / 2;
-    game_buttons[1].right = game_buttons[1].x_pos + game->menu_button_width / 2;
-    game_buttons[1].top = game_buttons[1].y_pos - game->menu_button_height / 2;
-    game_buttons[1].bottom = game_buttons[1].y_pos + game->menu_button_height / 2;
-    game_buttons[0].x_pos = x;
-    game_buttons[0].y_pos = y - 50;
-    game_buttons[0].left = game_buttons[0].x_pos - game->menu_button_width / 2;
-    game_buttons[0].right = game_buttons[0].x_pos + game->menu_button_width / 2;
-    game_buttons[0].top = game_buttons[0].y_pos - game->menu_button_height / 2;
-    game_buttons[0].bottom = game_buttons[0].y_pos + game->menu_button_height / 2;
-    game_buttons[2].x_pos = x;
-    game_buttons[2].y_pos = y - 100;
-    game_buttons[2].left = game_buttons[2].x_pos - game->menu_button_width / 2;
-    game_buttons[2].right = game_buttons[2].x_pos + game->menu_button_width / 2;
-    game_buttons[2].top = game_buttons[2].y_pos - game->menu_button_height / 2;
-    game_buttons[2].bottom = game_buttons[2].y_pos + game->menu_button_height / 2;
-    game_buttons[3].x_pos = x;
-    game_buttons[3].y_pos = y - 150;
-    game_buttons[3].left = game_buttons[3].x_pos - game->menu_button_width / 2;
-    game_buttons[3].right = game_buttons[3].x_pos + game->menu_button_width / 2;
-    game_buttons[3].top = game_buttons[3].y_pos - game->menu_button_height / 2;
-    game_buttons[3].bottom = game_buttons[3].y_pos + game->menu_button_height / 2;
+    float button_width_ratio = MENU_BUTTON_WIDTH_RATIO;
+    float button_height_ratio = MENU_BUTTON_HEIGHT_RATIO;
+    float start_x_ratio = 0.1f; // 10% РѕС‚ Р»РµРІРѕРіРѕ РєСЂР°СЏ
+    float start_y_ratio = 0.2f; // 20% РѕС‚ РІРµСЂС…Р°
+    float spacing_ratio = 0.07f; // РћС‚СЃС‚СѓРї 7% РІС‹СЃРѕС‚С‹ СЌРєСЂР°РЅР°
+
+    game->menu_button_width = (int)(game->screen_width * button_width_ratio);
+    game->menu_button_height = (int)(game->screen_height * button_height_ratio);
+
+    // РљРЅРѕРїРєРё РёРіСЂС‹
+    for (int i = 0; i < 4; i++) {
+        game_buttons[i].x_pos = (int)(game->screen_width * start_x_ratio);
+        game_buttons[i].y_pos = (int)(game->screen_height * (start_y_ratio + i * spacing_ratio));
+        game_buttons[i].left = game_buttons[i].x_pos - game->menu_button_width / 2;
+        game_buttons[i].right = game_buttons[i].x_pos + game->menu_button_width / 2;
+        game_buttons[i].top = game_buttons[i].y_pos - game->menu_button_height / 2;
+        game_buttons[i].bottom = game_buttons[i].y_pos + game->menu_button_height / 2;
+    }
+
     game->computer_mines_left = 2;
     game->computer_radars_left = 2;
 }
@@ -2437,7 +2451,7 @@ void initLeaderBoard(GameState* game) {
 void saveLeaderBoard(GameState* game) {
     FILE* file = fopen("leaderboard.txt", "w");
     if (!file) {
-        printf("Не удалось сохранить таблицу лидеров\n");
+        printf("РќРµ СѓРґР°Р»РѕСЃСЊ СЃРѕС…СЂР°РЅРёС‚СЊ С‚Р°Р±Р»РёС†Сѓ Р»РёРґРµСЂРѕРІ\n");
         return;
     }
 
