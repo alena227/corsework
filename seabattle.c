@@ -26,12 +26,7 @@
 #define MENU_BUTTON_WIDTH_RATIO 0.4f   
 #define MENU_BUTTON_HEIGHT_RATIO 0.05f 
 
-#define HIT_WEIGHT 5.0f
-#define SUNK_SHIP_WEIGHT 25.0f
-#define PATTERN_WEIGHT 2.0f
-#define MINE_WEIGHT -8.0f
-#define RADAR_BONUS 5.0f
-#define REPEATED_SHOT_PENALTY -2.0f
+
 typedef struct HitCell {
     short int x;
     short int y;
@@ -331,27 +326,19 @@ void initLeaderBoard(GameState* game);
 void saveLeaderBoard(GameState* game);
 
 void shuffle_for_xy(GameState* game, short int arr[][2], int size);
-void simulateMineExplosionOnCopy(CellState** grid, char grid_size, short int mine_x, short int mine_y);
-void simulateShipSinkingOnCopy(GameState* game, CellState** grid, char grid_size, short int x, short int y);
 CellState** copyGrid(CellState** original, char grid_size);
 void freeSimulatedGrid(CellState** grid, char grid_size);
-void considerPossibleShipPositions(GameState* game, CellState** grid, char grid_size, CellProbability** prob_grid);
-char checkHitPattern(GameState* game, CellState** grid, char grid_size, short int x, short int y);
-void freeProbabilityGrid(CellProbability** grid, char grid_size);
-CellProbability** allocProbabilityGrid(char grid_size);
-char isGameOver(GameState* game, CellState** grid, char grid_size);
-int countOurLosses(GameState* game, int is_maximizing);
-int countRepeatedShots(GameState* game, CellState** grid, char grid_size);
 
-float evaluateBoard(GameState* game, CellState** grid, char grid_size, char is_maximizing);
-void calculateProbabilities(GameState* game, CellState** grid, char grid_size, CellProbability** prob_grid);
-void updateProbabilitiesAroundHit(GameState* game, CellState** grid, char grid_size, CellProbability** prob_grid, short int x, short int y);
 Move minimax(GameState* game, CellState** grid, char grid_size, int depth,int is_maximizing, float alpha, float beta);
-int getPossibleMovesCount(GameState* game, CellState** grid, char grid_size);
-Move* getPossibleMoves(GameState* game, CellState** grid, char grid_size);
-CellState** simulateMove(GameState* game, CellState** grid, char grid_size, short int x, short int y);
 char executeComputerMove(GameState* game, CellState** grid, char grid_size, short int x, short int y, char user, HitCell** hitListHead);
 char computerTurnWithMinimax(GameState* game, CellState** grid, char grid_size, char user, HitCell** hitListHead, CellState** grid_for_comp);
+int compareMoves(const void* a, const void* b);
+float calculateMovePriority(GameState* game, CellState** grid, char grid_size, short int x, short int y, CellState cell_state);
+char checkLineHits(CellState** grid, char grid_size, short int x, short int y,  short int dx, short int dy);
+char isEarlyGame(GameState* game);
+char simulateComputerMove(GameState* game, CellState** grid, char grid_size,  short int x, short int y, char user, HitCell** hitListHead);
+float evaluateBoardForMinimax(GameState* game, CellState** grid, char grid_size, char is_maximizing);
+
 
 char computerTurn(GameState* game, CellState** grid, char grid_size, char user, HitCell** hitListHead, CellState** grid_for_comp);
 void activateFog(GameState* game);
@@ -1000,229 +987,255 @@ void placeShip(GameState* game, CellState** grid, short int startX, short int st
         }
     }
 }
-int countRepeatedShots(GameState* game, CellState** grid, char grid_size) {
-    int repeated = 0;
-    for (int y = 0; y < grid_size; y++) {
-        for (int x = 0; x < grid_size; x++) {
-            if (grid[y][x] == HIT || grid[y][x] == MISS) {
-                for (int dy = -1; dy <= 1; dy++) {
-                    for (int dx = -1; dx <= 1; dx++) {
-                        short int nx = x + dx;
-                        short int ny = y + dy;
-                        if (nx >= 0 && nx < grid_size && ny >= 0 && ny < grid_size) {
-                            if (grid[ny][nx] == HIT || grid[ny][nx] == MISS) {
-                                repeated++;
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    }
-    return repeated / 2;
-}
 
-int countOurLosses(GameState* game, int is_maximizing) {
-    int losses = 0;
-    CellState** our_grid = is_maximizing ? game->player_grid : game->enemy_grid;
 
-    for (int y = 0; y < game->grid_size; y++) {
-        for (int x = 0; x < game->grid_size; x++) {
-            if (our_grid[y][x] == HIT) {
-                losses++;
-            }
-        }
-    }
-    return losses;
-}
-
-char isGameOver(GameState* game, CellState** grid, char grid_size) {
-    return !shipsRemaining(game, grid, grid_size);
-}
-CellProbability** allocProbabilityGrid(char grid_size) {
-    CellProbability** grid = malloc(sizeof(CellProbability*) * grid_size);
-    for (int i = 0; i < grid_size; i++) {
-        grid[i] = malloc(sizeof(CellProbability) * grid_size);
-    }
-    return grid;
-}
-
-void freeProbabilityGrid(CellProbability** grid, char grid_size) {
-    for (int i = 0; i < grid_size; i++) {
-        free(grid[i]);
-    }
-    free(grid);
-}
-
-char checkHitPattern(GameState* game, CellState** grid, char grid_size, short int x, short int y) {
-    int horizontal_hits = 0;
-    for (int dx = -2; dx <= 2; dx++) {
-        short int nx = x + dx;
-        if (nx >= 0 && nx < grid_size && grid[y][nx] == HIT) {
-            horizontal_hits++;
-        }
-    }
-
-    int vertical_hits = 0;
-    for (int dy = -2; dy <= 2; dy++) {
-        short int ny = y + dy;
-        if (ny >= 0 && ny < grid_size && grid[ny][x] == HIT) {
-            vertical_hits++;
-        }
-    }
-
-    return (horizontal_hits >= 2 || vertical_hits >= 2);
-}
-
-void updateProbabilitiesAroundHit(GameState* game, CellState** grid, char grid_size,
-    CellProbability** prob_grid, short int x, short int y) {
-    int directions[4][2] = { {1,0}, {-1,0}, {0,1}, {0,-1} };
-
-    for (int i = 0; i < 4; i++) {
-        short int nx = x + directions[i][0];
-        short int ny = y + directions[i][1];
-
-        if (nx >= 0 && nx < grid_size && ny >= 0 && ny < grid_size) {
-            if (grid[ny][nx] == WATER && !prob_grid[ny][nx].is_processed) {
-                prob_grid[ny][nx].probability *= 3.0f;
-                prob_grid[ny][nx].ship_present = 1;
-            }
-        }
-    }
-}
-
-void considerPossibleShipPositions(GameState* game, CellState** grid, char grid_size,
-    CellProbability** prob_grid) {
-    for (char ship_size = 1; ship_size <= 5; ship_size++) {
-        for (int y = 0; y < grid_size; y++) {
-            for (int x = 0; x <= grid_size - ship_size; x++) {
-                char can_place = 1;
-                for (int i = 0; i < ship_size; i++) {
-                    if (grid[y][x + i] == MISS || grid[y][x + i] == HIT) {
-                        can_place = 0;
-                        break;
-                    }
-                }
-                if (can_place) {
-                    for (int i = 0; i < ship_size; i++) {
-                        prob_grid[y][x + i].probability += 0.1f * ship_size;
-                    }
-                }
-            }
-        }
-
-        for (int x = 0; x < grid_size; x++) {
-            for (int y = 0; y <= grid_size - ship_size; y++) {
-                char can_place = 1;
-                for (int i = 0; i < ship_size; i++) {
-                    if (grid[y + i][x] == MISS || grid[y + i][x] == HIT) {
-                        can_place = 0;
-                        break;
-                    }
-                }
-                if (can_place) {
-                    for (int i = 0; i < ship_size; i++) {
-                        prob_grid[y + i][x].probability += 0.1f * ship_size;
-                    }
-                }
-            }
-        }
-    }
-}
-
-void calculateProbabilities(GameState* game, CellState** grid, char grid_size,
-    CellProbability** prob_grid) {
-    
-    for (int y = 0; y < grid_size; y++) {
-        for (int x = 0; x < grid_size; x++) {
-            if (grid[y][x] == HIT || grid[y][x] == MISS) {
-                prob_grid[y][x].probability = 0.0f;
-                prob_grid[y][x].is_processed = 1;
-            }
-            else {
-                prob_grid[y][x].probability = 1.0f / (grid_size * grid_size);
-                prob_grid[y][x].is_processed = 0;
-                prob_grid[y][x].ship_present = 0;
-            }
-        }
-    }
-
-    for (int y = 0; y < grid_size; y++) {
-        for (int x = 0; x < grid_size; x++) {
-            if (grid[y][x] == HIT) {
-                updateProbabilitiesAroundHit(game, grid, grid_size, prob_grid, x, y);
-                prob_grid[y][x].is_processed = 1;
-            }
-        }
-    }
-
-    considerPossibleShipPositions(game, grid, grid_size, prob_grid);
-
-    float total = 0.0f;
-    for (int y = 0; y < grid_size; y++) {
-        for (int x = 0; x < grid_size; x++) {
-            total += prob_grid[y][x].probability;
-        }
-    }
-
-    if (total > 0) {
-        for (int y = 0; y < grid_size; y++) {
-            for (int x = 0; x < grid_size; x++) {
-                prob_grid[y][x].probability /= total;
-            }
-        }
-    }
-}
-int getPossibleMovesCount(GameState* game, CellState** grid, char grid_size) {
-    int count = 0;
-    for (int y = 0; y < grid_size; y++) {
-        for (int x = 0; x < grid_size; x++) {
-            if (grid[y][x] == WATER || grid[y][x] == MINE) {
-                count++;
-            }
-        }
-    }
-    return count;
-}
-Move* getPossibleMoves(GameState* game, CellState** grid, char grid_size) {
-    int capacity = grid_size * grid_size;
-    Move* moves = malloc(sizeof(Move) * capacity);
-    int count = 0;
-
-    CellProbability** prob_grid = allocProbabilityGrid(grid_size);
-    calculateProbabilities(game, grid, grid_size, prob_grid);
-
-    for (int y = 0; y < grid_size; y++) {
-        for (int x = 0; x < grid_size; x++) {
-            if (grid[y][x] == WATER || grid[y][x] == MINE) {
-                moves[count].x = x;
-                moves[count].y = y;
-                moves[count].score = prob_grid[y][x].probability;
-                count++;
-            }
-        }
-    }
-
-    freeProbabilityGrid(prob_grid, grid_size);
-    return moves;
-}
 
 char executeComputerMove(GameState* game, CellState** grid, char grid_size,
     short int x, short int y, char user, HitCell** hitListHead) {
 
-    if (grid[y][x] == SHIP) {
+    printf("Выполнение хода компьютера: x=%d, y=%d, состояние до=%d, user=%d\n",
+        x, y, grid[y][x], user);
+
+    switch (grid[y][x]) {
+    case SHIP: {
+        printf("-> ПОПАДАНИЕ в корабль!\n");
+
         grid[y][x] = HIT;
+
         if (game->computer.chanceToHit != 1) {
             addHitCell(hitListHead, x, y);
+            printf("-> Добавлена в список попаданий\n");
         }
-        return 1;
-    }
-    else if (grid[y][x] == MINE) {
+
         if (user == 1) {
+            for (int i = 0; i < game->player_ships_count; i++) {
+                Ship* ship = &game->player_ships[i];
+
+                if (ship->orientation == 0) { 
+                    if (y == ship->startY && x >= ship->startX && x < ship->startX + ship->length) {
+                        ship->hits++;
+                        printf("-> Попадание в корабль игрока %d (длина=%d, попаданий=%d)\n",
+                            i, ship->length, ship->hits);
+
+                        if (isShipSunk(game, grid, grid_size, ship)) {
+                            printf("-> Корабль игрока %d ПОТОПЛЕН!\n", i);
+                            if (game->computer.chanceToHit != 1) {
+                                clearHitList(hitListHead);
+                                printf("-> Список попаданий очищен\n");
+                            }
+                        }
+                        break;
+                    }
+                }
+                else { 
+                    if (x == ship->startX && y >= ship->startY && y < ship->startY + ship->length) {
+                        ship->hits++;
+                        printf("-> Попадание в корабль игрока %d (длина=%d, попаданий=%d)\n",
+                            i, ship->length, ship->hits);
+
+                        if (isShipSunk(game, grid, grid_size, ship)) {
+                            printf("-> Корабль игрока %d ПОТОПЛЕН!\n", i);
+                            if (game->computer.chanceToHit != 1) {
+                                clearHitList(hitListHead);
+                                printf("-> Список попаданий очищен\n");
+                            }
+                        }
+                        break;
+                    }
+                }
+            }
+        }
+        else {
+            for (int i = 0; i < game->enemy_ships_count; i++) {
+                Ship* ship = &game->enemy_ships[i];
+
+                if (ship->orientation == 0) { 
+                    if (y == ship->startY && x >= ship->startX && x < ship->startX + ship->length) {
+                        ship->hits++;
+                        printf("-> Попадание в корабль противника %d (длина=%d, попаданий=%d)\n",
+                            i, ship->length, ship->hits);
+
+                        if (isShipSunk(game, grid, grid_size, ship)) {
+                            printf("-> Корабль противника %d ПОТОПЛЕН!\n", i);
+                            if (game->computer.chanceToHit != 1) {
+                                clearHitList(hitListHead);
+                                printf("-> Список попаданий очищен\n");
+                            }
+                        }
+                        break;
+                    }
+                }
+                else { 
+                    if (x == ship->startX && y >= ship->startY && y < ship->startY + ship->length) {
+                        ship->hits++;
+                        printf("-> Попадание в корабль противника %d (длина=%d, попаданий=%d)\n",
+                            i, ship->length, ship->hits);
+
+                        if (isShipSunk(game, grid, grid_size, ship)) {
+                            printf("-> Корабль противника %d ПОТОПЛЕН!\n", i);
+                            if (game->computer.chanceToHit != 1) {
+                                clearHitList(hitListHead);
+                                printf("-> Список попаданий очищен\n");
+                            }
+                        }
+                        break;
+                    }
+                }
+            }
+        }
+
+        game->is_hit = 1;
+        printf("-> Флаг is_hit установлен в 1\n");
+
+        return 1; 
+    }
+
+    case MINE: {
+        printf("-> АКТИВАЦИЯ МИНЫ!\n");
+
+        if (user == 1) {
+            printf("-> Мина на поле игрока, стреляем по противнику\n");
             shootCell(game, game->player_grid, game->enemy_grid, x, y, grid_size);
         }
         else {
+            printf("-> Мина на поле противника, стреляем по игроку\n");
             shootCell(game, game->enemy_grid, game->player_grid, x, y, grid_size);
+        }
+
+        game->is_hit = -2;
+        printf("-> Флаг is_hit установлен в -2 (мина)\n");
+
+        return 0; 
+    }
+
+    case WATER: {
+        printf("-> ПРОМАХ\n");
+
+        grid[y][x] = MISS;
+
+        game->is_hit = 0;
+        printf("-> Флаг is_hit установлен в 0\n");
+
+        return 0;
+    }
+
+    case HIT:
+    case MISS: {
+        printf("-> Клетка уже обстреляна (состояние=%d)\n", grid[y][x]);
+
+        return 0;
+    }
+
+    default: {
+        printf("-> ОШИБКА: неизвестное состояние клетки: %d\n", grid[y][x]);
+        return 0;
+    }
+    }
+}
+int compareMoves(const void* a, const void* b) {
+    const Move* moveA = (const Move*)a;
+    const Move* moveB = (const Move*)b;
+    if (moveA->score > moveB->score) return -1;
+    if (moveA->score < moveB->score) return 1;
+    return 0;
+}
+
+float calculateMovePriority(GameState* game, CellState** grid, char grid_size,
+    short int x, short int y, CellState cell_state) {
+    float priority = 0.0f;
+
+    if (cell_state == SHIP) {
+        priority += 1000.0f;
+    }
+    else if (cell_state == MINE) {
+        priority += 200.0f;
+    }
+
+    int hit_neighbors = 0;
+    int pattern_bonus = 0;
+
+    for (int dy = -1; dy <= 1; dy++) {
+        for (int dx = -1; dx <= 1; dx++) {
+            if (dx == 0 && dy == 0) continue;
+
+            short int nx = x + dx;
+            short int ny = y + dy;
+
+            if (nx >= 0 && nx < grid_size && ny >= 0 && ny < grid_size) {
+                if (grid[ny][nx] == HIT) {
+                    hit_neighbors++;
+
+                    if ((dx == 0 && checkLineHits(grid, grid_size, x, y, 0, 1)) ||  
+                        (dy == 0 && checkLineHits(grid, grid_size, x, y, 1, 0))) {  
+                        pattern_bonus += 50;
+                    }
+                }
+            }
+        }
+    }
+
+    priority += hit_neighbors * 30.0f;
+    priority += pattern_bonus;
+
+    if (isEarlyGame(game)) {
+        float center_x = grid_size / 2.0f;
+        float center_y = grid_size / 2.0f;
+        float distance_to_center = sqrtf(powf(x - center_x, 2) + powf(y - center_y, 2));
+        priority += (grid_size - distance_to_center) * 2.0f;
+    }
+
+    priority += (rand() % 20);
+
+    return priority;
+}
+
+char checkLineHits(CellState** grid, char grid_size, short int x, short int y,
+    short int dx, short int dy) {
+    int consecutive_hits = 0;
+
+    for (int i = 1; i <= 4; i++) {
+        short int nx = x + dx * i;
+        short int ny = y + dy * i;
+        if (nx >= 0 && nx < grid_size && ny >= 0 && ny < grid_size) {
+            if (grid[ny][nx] == HIT) consecutive_hits++;
+            else break;
+        }
+    }
+
+    for (int i = 1; i <= 4; i++) {
+        short int nx = x - dx * i;
+        short int ny = y - dy * i;
+        if (nx >= 0 && nx < grid_size && ny >= 0 && ny < grid_size) {
+            if (grid[ny][nx] == HIT) consecutive_hits++;
+            else break;
+        }
+    }
+
+    return consecutive_hits >= 2;
+}
+
+char isEarlyGame(GameState* game) {
+    return game->total_turns < (game->grid_size * game->grid_size) / 3;
+}
+
+char simulateComputerMove(GameState* game, CellState** grid, char grid_size,
+    short int x, short int y, char user, HitCell** hitListHead) {
+
+    if (grid[y][x] == SHIP) {
+        grid[y][x] = HIT;
+        return 1;
+    }
+    else if (grid[y][x] == MINE) {
+        grid[y][x] = MISS;
+        if (rand() % 100 < 50) {
+            for (int i = 0; i < 10; i++) {
+                short int mx = rand() % grid_size;
+                short int my = rand() % grid_size;
+                if (grid[my][mx] == SHIP) {
+                    grid[my][mx] = HIT;
+                    break;
+                }
+            }
         }
         return 0;
     }
@@ -1231,75 +1244,24 @@ char executeComputerMove(GameState* game, CellState** grid, char grid_size,
         return 0;
     }
 }
-void simulateShipSinkingOnCopy(GameState* game, CellState** grid, char grid_size,  short int x, short int y) {
-   
-    for (int dy = -1; dy <= 1; dy++) {
-        for (int dx = -1; dx <= 1; dx++) {
-            short int nx = x + dx;
-            short int ny = y + dy;
 
-            if (nx >= 0 && nx < grid_size && ny >= 0 && ny < grid_size) {
-                if (grid[ny][nx] == WATER) {
-                    grid[ny][nx] = MISS;
-                }
+float evaluateBoardForMinimax(GameState* game, CellState** grid, char grid_size, char is_maximizing) {
+    int our_hits = 0;
+    int enemy_ships_remaining = 0;
+
+    for (int y = 0; y < grid_size; y++) {
+        for (int x = 0; x < grid_size; x++) {
+            if (grid[y][x] == HIT) {
+                our_hits++;
+            }
+            else if (grid[y][x] == SHIP) {
+                enemy_ships_remaining++;
             }
         }
     }
-}
-void simulateMineExplosionOnCopy(CellState** grid, char grid_size, short int mine_x, short int mine_y) {
 
-    int damage_cells = rand() % 2 + 1; 
-
-    for (int i = 0; i < damage_cells; i++) {
-        short int x, y;
-        int attempts = 0;
-
-        do {
-            x = rand() % grid_size;
-            y = rand() % grid_size;
-            attempts++;
-        } while (grid[y][x] != SHIP && attempts < 30);
-
-        if (attempts < 30 && grid[y][x] == SHIP) {
-            grid[y][x] = HIT;
-        }
-    }
-}
-CellState** simulateMove(GameState* game, CellState** original_grid, char grid_size,
-    short int x, short int y) {
-    CellState** new_grid = malloc(sizeof(CellState*) * grid_size);
-    if (new_grid == NULL) return NULL;
-
-    for (int i = 0; i < grid_size; i++) {
-        new_grid[i] = malloc(sizeof(CellState) * grid_size);
-        if (new_grid[i] == NULL) {
-            for (int j = 0; j < i; j++) free(new_grid[j]);
-            free(new_grid);
-            return NULL;
-        }
-        memcpy(new_grid[i], original_grid[i], sizeof(CellState) * grid_size);
-    }
-
-    if (x >= 0 && x < grid_size && y >= 0 && y < grid_size) {
-        switch (new_grid[y][x]) {
-        case WATER:
-            new_grid[y][x] = MISS;
-            break;
-        case SHIP:
-            new_grid[y][x] = HIT;
-            simulateShipSinkingOnCopy(game, new_grid, grid_size, x, y);
-            break;
-        case MINE:
-            new_grid[y][x] = MISS;
-            simulateMineExplosionOnCopy(new_grid, grid_size, x, y);
-            break;
-        case HIT:
-        case MISS:
-            break;
-        }
-    }
-
-    return new_grid;
+    float score = our_hits * 10.0f - enemy_ships_remaining * 25.0f;
+    return is_maximizing ? score : -score;
 }
 void freeSimulatedGrid(CellState** grid, char grid_size) {
     if (grid == NULL) return;
@@ -1315,53 +1277,105 @@ CellState** copyGrid(CellState** original, char grid_size) {
     CellState** new_grid = malloc(sizeof(CellState*) * grid_size);
     for (int i = 0; i < grid_size; i++) {
         new_grid[i] = malloc(sizeof(CellState) * grid_size);
-        memcpy(new_grid[i], original[i], sizeof(CellState) * grid_size);
+        for (int j = 0; j < grid_size; j++) {
+            new_grid[i][j] = original[i][j];
+        }
     }
     return new_grid;
 }
 Move minimax(GameState* game, CellState** grid, char grid_size, int depth,
     int is_maximizing, float alpha, float beta) {
-    Move best_move = { -1, -1, is_maximizing ? -INFINITY : INFINITY };
 
-    if (depth == 0 || isGameOver(game, grid, grid_size)) {
-        best_move.score = evaluateBoard(game, grid, grid_size, is_maximizing);
+    Move best_move = { -1, -1, is_maximizing ? -10000.0f : 10000.0f };
+
+    if (depth == 0) {
+        best_move.score = evaluateBoardForMinimax(game, grid, grid_size, is_maximizing);
         return best_move;
     }
 
-    Move* possible_moves = getPossibleMoves(game, grid, grid_size);
-    int move_count = getPossibleMovesCount(game, grid, grid_size);
+    int total_moves = 0;
+    for (int y = 0; y < grid_size; y++) {
+        for (int x = 0; x < grid_size; x++) {
+            if (grid[y][x] == WATER || grid[y][x] == SHIP || grid[y][x] == MINE) {
+                total_moves++;
+            }
+        }
+    }
+
+    if (total_moves == 0) {
+        best_move.score = evaluateBoardForMinimax(game, grid, grid_size, is_maximizing);
+        return best_move;
+    }
+
+    Move* all_moves = malloc(sizeof(Move) * total_moves);
+    int move_count = 0;
+
+    for (int y = 0; y < grid_size; y++) {
+        for (int x = 0; x < grid_size; x++) {
+            CellState cell_state = grid[y][x];
+
+            if (cell_state == WATER || cell_state == SHIP || cell_state == MINE) {
+                float priority = calculateMovePriority(game, grid, grid_size, x, y, cell_state);
+
+                all_moves[move_count].x = x;
+                all_moves[move_count].y = y;
+                all_moves[move_count].score = priority;
+                move_count++;
+            }
+        }
+    }
+
+    qsort(all_moves, move_count, sizeof(Move), compareMoves);
+
+    int candidates_to_analyze = (move_count < 15) ? move_count : 15;
 
     if (is_maximizing) {
-        best_move.score = -INFINITY;
+        best_move.score = -10000.0f;
 
-        for (int i = 0; i < move_count; i++) {
-            CellState** new_grid = simulateMove(game, grid, grid_size, possible_moves[i].x, possible_moves[i].y);
+        for (int i = 0; i < candidates_to_analyze; i++) {
+            GameState simulated_game = *game;
+            simulated_game.player_grid = copyGrid(grid, grid_size);
+            simulated_game.enemy_grid = copyGrid(game->enemy_grid, grid_size);
 
-            Move current_move = minimax(game, new_grid, grid_size, depth - 1, 0, alpha, beta);
+            char result = simulateComputerMove(&simulated_game, simulated_game.player_grid, grid_size,
+                all_moves[i].x, all_moves[i].y, 1, NULL);
 
-            freeSimulatedGrid(new_grid, grid_size);
+            Move current_move = minimax(&simulated_game, simulated_game.player_grid, grid_size,
+                depth - 1, 0, alpha, beta);
+
+            freeSimulatedGrid(simulated_game.player_grid, grid_size);
+            freeSimulatedGrid(simulated_game.enemy_grid, grid_size);
 
             if (current_move.score > best_move.score) {
-                best_move = possible_moves[i];
+                best_move.x = all_moves[i].x;
+                best_move.y = all_moves[i].y;
                 best_move.score = current_move.score;
             }
 
             alpha = fmaxf(alpha, best_move.score);
-            if (beta <= alpha) break; 
+            if (beta <= alpha) break;
         }
     }
     else {
-        best_move.score = INFINITY;
+        best_move.score = 10000.0f;
 
-        for (int i = 0; i < move_count; i++) {
-            CellState** new_grid = simulateMove(game, grid, grid_size, possible_moves[i].x, possible_moves[i].y);
+        for (int i = 0; i < candidates_to_analyze; i++) {
+            GameState simulated_game = *game;
+            simulated_game.enemy_grid = copyGrid(grid, grid_size);
+            simulated_game.player_grid = copyGrid(game->player_grid, grid_size);
 
-            Move current_move = minimax(game, new_grid, grid_size, depth - 1, 1, alpha, beta);
+            char result = simulateComputerMove(&simulated_game, simulated_game.enemy_grid, grid_size,
+                all_moves[i].x, all_moves[i].y, 0, NULL);
 
-            freeSimulatedGrid(new_grid, grid_size);
+            Move current_move = minimax(&simulated_game, simulated_game.enemy_grid, grid_size,
+                depth - 1, 1, alpha, beta);
+
+            freeSimulatedGrid(simulated_game.player_grid, grid_size);
+            freeSimulatedGrid(simulated_game.enemy_grid, grid_size);
 
             if (current_move.score < best_move.score) {
-                best_move = possible_moves[i];
+                best_move.x = all_moves[i].x;
+                best_move.y = all_moves[i].y;
                 best_move.score = current_move.score;
             }
 
@@ -1370,77 +1384,63 @@ Move minimax(GameState* game, CellState** grid, char grid_size, int depth,
         }
     }
 
-    free(possible_moves);
+    free(all_moves);
     return best_move;
 }
 
-float evaluateBoard(GameState* game, CellState** grid, char grid_size, char is_maximizing) {
-    float score = 0.0f;
-
-  
-    int hit_count = 0;
-    int sunk_ships = 0;
-    int mine_count = 0;
-
-    for (int y = 0; y < grid_size; y++) {
-        for (int x = 0; x < grid_size; x++) {
-            if (grid[y][x] == HIT) {
-                hit_count++;
-                if (checkHitPattern(game, grid, grid_size, x, y)) {
-                    score += PATTERN_WEIGHT;
-                }
-            }
-            else if (grid[y][x] == MINE) {
-                mine_count++;
-            }
-        }
-    }
-    if (hit_count > game->grid_size * 0.7f) {
-        score -= 30.0f;
-    }
-    Ship* ships = is_maximizing ? game->enemy_ships : game->player_ships;
-    int ship_count = is_maximizing ? game->enemy_ships_count : game->player_ships_count;
-
-    for (int i = 0; i < ship_count; i++) {
-        if (isShipSunk(game, grid, grid_size, &ships[i])) {
-            sunk_ships++;
-        }
-    }
-
-    score += hit_count * HIT_WEIGHT;
-    score += sunk_ships * SUNK_SHIP_WEIGHT;
-    score += mine_count * MINE_WEIGHT;
-
-    score += (rand() % 10 - 5);
-
-    return is_maximizing ? score : -score;
-}
 
 char computerTurnWithMinimax(GameState* game, CellState** grid, char grid_size,
     char user, HitCell** hitListHead, CellState** grid_for_comp) {
 
-    if (game->current_difficult != HARD) {
+    if (game->current_difficult == EASY) {
         return computerTurn(game, grid, grid_size, user, hitListHead, grid_for_comp);
     }
 
-    static int move_counter = 0;
-    move_counter++;
-    if (move_counter % 3 != 0) {
-        return computerTurn(game, grid, grid_size, user, hitListHead, grid_for_comp);
+    printf("=== MINIMAX АНАЛИЗ ХОДА ===\n");
+
+    int depth;
+    if (game->current_difficult == NORMAL) {
+        depth = 1;
+    }
+    else { 
+        depth = 3; 
     }
 
-    Move best_move = minimax(game, grid, grid_size, 2, 1, -INFINITY, INFINITY); 
+    Move best_move = minimax(game, grid, grid_size, depth, 1, -10000.0f, 10000.0f);
 
     if (best_move.x != -1 && best_move.y != -1) {
-        if (rand() % 100 < 20) {
-            return computerTurn(game, grid, grid_size, user, hitListHead, grid_for_comp);
+        printf("Minimax выбрал ход: x=%d, y=%d (оценка: %.2f)\n",
+            best_move.x, best_move.y, best_move.score);
+
+        char result = executeComputerMove(game, grid, grid_size, best_move.x, best_move.y,
+            user, hitListHead);
+
+        game->turns_count++;
+        game->total_turns++;
+
+        short int x_offset, y_offset;
+        if (user == 1) {
+            x_offset = game->player_x_offset;
+            y_offset = game->player_y_offset;
+            printf("Стреляем по игроку\n");
+        }
+        else {
+            x_offset = game->enemy_x_offset;
+            y_offset = game->enemy_y_offset;
+            printf("Стреляем по противнику\n");
         }
 
-        return executeComputerMove(game, grid, grid_size, best_move.x, best_move.y,
-            user, hitListHead);
-    }
+       
+       
+        printf("Состояние клетки: %d\n", grid[best_move.y][best_move.x]);
+        printf("=== ХОД ВЫПОЛНЕН ===\n");
 
-    return computerTurn(game, grid, grid_size, user, hitListHead, grid_for_comp);
+        return result;
+    }
+    else {
+        printf("Minimax не нашел хода, используем обычный алгоритм\n");
+        return computerTurn(game, grid, grid_size, user, hitListHead, grid_for_comp);
+    }
 }
 char tryShipOnEdge(GameState* game, CellState** grid, char grid_size, char length, char orientation, short int* x, short int* y) {
     short int attempts = 0;
@@ -1585,6 +1585,7 @@ void shuffle_for_xy(GameState* game, short int arr[][2], int size) {
 
 
 char computerTurn(GameState* game, CellState** grid, char grid_size, char user, HitCell** hitListHead, CellState** grid_for_comp) {
+   
     CellState** temp = grid;
     if (game->computer_radars_left > 0 && (rand() % 100) < 10) {
         if (game->current_user.comp == 1) {
