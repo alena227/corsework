@@ -10,6 +10,8 @@
 #include <windows.h> 
 
 
+
+
 #define RU(text) win1251_to_utf8(text)
 
 #define FONT_SIZE               36
@@ -19,7 +21,7 @@
 #define MAX_SAVES               3
 #define MAX_SHIPS               11
 
-#define MAIN_BUTTONS_COUNT      4
+#define MAIN_BUTTONS_COUNT      5
 #define SETTINGS_BUTTONS_COUNT  9
 
 #define CELL_SIZE_RATIO          0.03f  
@@ -99,6 +101,7 @@ typedef enum {
     BUTTON_LEADERBOARD,
     BUTTON_ADD,
     BUTTON_EXIT_MENU,
+    BUTTON_BENCHMARK,
 } ButtonType;
 
 typedef struct {
@@ -117,6 +120,7 @@ Button main_menu_buttons[] = {
      {"Новая игра", 0, 0, 0, 0, 0, 0, false, true, BUTTON_NEW_GAME},
      {"Загрузить игру", 0, 0, 0, 0, 0, 0, false, true, BUTTON_LOAD_GAME},
      {"Таблица лидеров", 0, 0, 0, 0, 0, 0, false, true, BUTTON_LEADERBOARD},
+      {"Тест производительности", 0, 0, 0, 0, 0, 0, false, true, BUTTON_BENCHMARK},
      {"Выход", 0, 0, 0, 0, 0, 0, false, true, BUTTON_EXIT}
 };
 
@@ -282,6 +286,19 @@ typedef struct {
 
 } GameState;
 
+typedef struct {
+    double min_time;
+    double max_time;
+    double avg_time;
+    int nodes_evaluated;
+    int cache_hits;
+    int depth_reached;
+} BenchmarkStats;
+
+GameState createTestScenario(int scenario_id);
+void printBenchmarkResults(const char* test_name, BenchmarkStats stats);
+void benchmarkMinimaxPerformance();
+
 char isSpaceAvailable(GameState* game, CellState** grid, char grid_size, short int x, short int y, char length, char orientation);
 char initSDL(GameState* game);
 void closeSDL(GameState* game);
@@ -352,6 +369,94 @@ void checkStorm(GameState* game, float delta_time);
 void drawStormEffect(GameState* game);
 char shipsRemaining(GameState* game, CellState** grid, char grid_size);
 char placeShipsRandomly(GameState* game, CellState** grid, char grid_size, Ship* ships);
+
+GameState createTestScenario(int scenario_id) {
+    GameState test_game = { 0 };
+    test_game.grid_size = 10;
+    test_game.current_difficult = HARD;
+
+    test_game.player_grid = allocBoard(test_game.grid_size);
+    test_game.enemy_grid = allocBoard(test_game.grid_size);
+    initBoard(&test_game, &test_game.player_grid, test_game.grid_size);
+    initBoard(&test_game, &test_game.enemy_grid, test_game.grid_size);
+
+    switch (scenario_id % 5) {
+    case 0:
+        placeShipsRandomly(&test_game, test_game.enemy_grid, test_game.grid_size, test_game.enemy_ships);
+        test_game.enemy_grid[2][3] = HIT;
+        test_game.enemy_grid[2][4] = HIT;
+        break;
+    case 1: 
+        placeShipsRandomly(&test_game, test_game.enemy_grid, test_game.grid_size, test_game.enemy_ships);
+        for (int i = 0; i < 15; i++) {
+            int x = rand() % test_game.grid_size;
+            int y = rand() % test_game.grid_size;
+            if (test_game.enemy_grid[y][x] == SHIP) {
+                test_game.enemy_grid[y][x] = HIT;
+            }
+        }
+        break;
+    case 2:
+        placeShipsRandomly(&test_game, test_game.enemy_grid, test_game.grid_size, test_game.enemy_ships);
+        for (int y = 0; y < test_game.grid_size; y++) {
+            for (int x = 0; x < test_game.grid_size; x++) {
+                if (test_game.enemy_grid[y][x] == SHIP && (x > 2 || y > 2)) {
+                    test_game.enemy_grid[y][x] = HIT;
+                }
+            }
+        }
+        break;
+    default: 
+        placeShipsRandomly(&test_game, test_game.enemy_grid, test_game.grid_size, test_game.enemy_ships);
+        break;
+    }
+
+    return test_game;
+}
+
+void printBenchmarkResults(const char* test_name, BenchmarkStats stats) {
+    printf("\n=== %s ===\n", test_name);
+    printf("Iterations: 100\n");
+    printf("Average time: %.6f seconds\n", stats.avg_time);
+    printf("Minimum time: %.6f seconds\n", stats.min_time);
+    printf("Maximum time: %.6f seconds\n", stats.max_time);
+    printf("Performance range: %.6f seconds\n", stats.max_time - stats.min_time);
+    printf("==============================\n");
+}
+
+void benchmarkMinimaxPerformance() {
+    printf("Starting Minimax performance benchmark...\n");
+
+    BenchmarkStats stats = { 0 };
+    const int iterations = 100;
+
+    for (int i = 0; i < iterations; i++) {
+        GameState test_game = createTestScenario(i);
+
+        clock_t start = clock();
+        Move result = minimax(&test_game, test_game.enemy_grid,
+            test_game.grid_size, 3, 1, -10000.0f, 10000.0f);
+        clock_t end = clock();
+
+        double execution_time = (double)(end - start) / CLOCKS_PER_SEC;
+
+        stats.avg_time += execution_time;
+        if (execution_time < stats.min_time || i == 0)
+            stats.min_time = execution_time;
+        if (execution_time > stats.max_time)
+            stats.max_time = execution_time;
+
+        freeBoard(test_game.player_grid, test_game.grid_size);
+        freeBoard(test_game.enemy_grid, test_game.grid_size);
+
+        if ((i + 1) % 10 == 0) {
+            printf("Completed %d/%d iterations...\n", i + 1, iterations);
+        }
+    }
+
+    stats.avg_time /= iterations;
+    printBenchmarkResults("Minimax Performance Benchmark", stats);
+}
 
 char* win1251_to_utf8(const char* str) {
     int size = MultiByteToWideChar(1251, 0, str, -1, NULL, 0);
@@ -2525,7 +2630,12 @@ void handleButtonClick(GameState* game, Button* button) {
         game_buttons[2].is_active = false;
 
         break;
+    case BUTTON_BENCHMARK:
+        printf("Запуск теста производительности...\n");
+        benchmarkMinimaxPerformance();
+        break;
     }
+
 }
 
 int check_eng(GameState* game, char* str) {
