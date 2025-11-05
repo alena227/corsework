@@ -10,8 +10,6 @@
 #include <windows.h> 
 
 
-
-
 #define RU(text) win1251_to_utf8(text)
 
 #define FONT_SIZE               36
@@ -21,7 +19,7 @@
 #define MAX_SAVES               3
 #define MAX_SHIPS               11
 
-#define MAIN_BUTTONS_COUNT      5
+#define MAIN_BUTTONS_COUNT      4
 #define SETTINGS_BUTTONS_COUNT  9
 
 #define CELL_SIZE_RATIO          0.03f  
@@ -101,7 +99,6 @@ typedef enum {
     BUTTON_LEADERBOARD,
     BUTTON_ADD,
     BUTTON_EXIT_MENU,
-    BUTTON_BENCHMARK,
 } ButtonType;
 
 typedef struct {
@@ -120,7 +117,6 @@ Button main_menu_buttons[] = {
      {"Новая игра", 0, 0, 0, 0, 0, 0, false, true, BUTTON_NEW_GAME},
      {"Загрузить игру", 0, 0, 0, 0, 0, 0, false, true, BUTTON_LOAD_GAME},
      {"Таблица лидеров", 0, 0, 0, 0, 0, 0, false, true, BUTTON_LEADERBOARD},
-      {"Тест производительности", 0, 0, 0, 0, 0, 0, false, true, BUTTON_BENCHMARK},
      {"Выход", 0, 0, 0, 0, 0, 0, false, true, BUTTON_EXIT}
 };
 
@@ -162,18 +158,6 @@ typedef struct {
     char name[64];
     short int score;
 } Player;
-
-typedef struct {
-    short int x;
-    short int y;
-    float score;
-} Move;
-
-typedef struct {
-    float probability;
-    char ship_present;
-    char is_processed;
-} CellProbability;
 
 const char* letters[15] = {
     "А", "Б", "В", "Г", "Д",
@@ -286,19 +270,6 @@ typedef struct {
 
 } GameState;
 
-typedef struct {
-    double min_time;
-    double max_time;
-    double avg_time;
-    int nodes_evaluated;
-    int cache_hits;
-    int depth_reached;
-} BenchmarkStats;
-
-GameState createTestScenario(int scenario_id);
-void printBenchmarkResults(const char* test_name, BenchmarkStats stats);
-void benchmarkMinimaxPerformance();
-
 char isSpaceAvailable(GameState* game, CellState** grid, char grid_size, short int x, short int y, char length, char orientation);
 char initSDL(GameState* game);
 void closeSDL(GameState* game);
@@ -343,20 +314,6 @@ void initLeaderBoard(GameState* game);
 void saveLeaderBoard(GameState* game);
 
 void shuffle_for_xy(GameState* game, short int arr[][2], int size);
-CellState** copyGrid(CellState** original, char grid_size);
-void freeSimulatedGrid(CellState** grid, char grid_size);
-
-Move minimax(GameState* game, CellState** grid, char grid_size, int depth,int is_maximizing, float alpha, float beta);
-char executeComputerMove(GameState* game, CellState** grid, char grid_size, short int x, short int y, char user, HitCell** hitListHead);
-char computerTurnWithMinimax(GameState* game, CellState** grid, char grid_size, char user, HitCell** hitListHead, CellState** grid_for_comp);
-int compareMoves(const void* a, const void* b);
-float calculateMovePriority(GameState* game, CellState** grid, char grid_size, short int x, short int y, CellState cell_state);
-char checkLineHits(CellState** grid, char grid_size, short int x, short int y,  short int dx, short int dy);
-char isEarlyGame(GameState* game);
-char simulateComputerMove(GameState* game, CellState** grid, char grid_size,  short int x, short int y, char user, HitCell** hitListHead);
-float evaluateBoardForMinimax(GameState* game, CellState** grid, char grid_size, char is_maximizing);
-
-
 char computerTurn(GameState* game, CellState** grid, char grid_size, char user, HitCell** hitListHead, CellState** grid_for_comp);
 void activateFog(GameState* game);
 void checkFog(GameState* game);
@@ -369,94 +326,6 @@ void checkStorm(GameState* game, float delta_time);
 void drawStormEffect(GameState* game);
 char shipsRemaining(GameState* game, CellState** grid, char grid_size);
 char placeShipsRandomly(GameState* game, CellState** grid, char grid_size, Ship* ships);
-
-GameState createTestScenario(int scenario_id) {
-    GameState test_game = { 0 };
-    test_game.grid_size = 10;
-    test_game.current_difficult = HARD;
-
-    test_game.player_grid = allocBoard(test_game.grid_size);
-    test_game.enemy_grid = allocBoard(test_game.grid_size);
-    initBoard(&test_game, &test_game.player_grid, test_game.grid_size);
-    initBoard(&test_game, &test_game.enemy_grid, test_game.grid_size);
-
-    switch (scenario_id % 5) {
-    case 0:
-        placeShipsRandomly(&test_game, test_game.enemy_grid, test_game.grid_size, test_game.enemy_ships);
-        test_game.enemy_grid[2][3] = HIT;
-        test_game.enemy_grid[2][4] = HIT;
-        break;
-    case 1: 
-        placeShipsRandomly(&test_game, test_game.enemy_grid, test_game.grid_size, test_game.enemy_ships);
-        for (int i = 0; i < 15; i++) {
-            int x = rand() % test_game.grid_size;
-            int y = rand() % test_game.grid_size;
-            if (test_game.enemy_grid[y][x] == SHIP) {
-                test_game.enemy_grid[y][x] = HIT;
-            }
-        }
-        break;
-    case 2:
-        placeShipsRandomly(&test_game, test_game.enemy_grid, test_game.grid_size, test_game.enemy_ships);
-        for (int y = 0; y < test_game.grid_size; y++) {
-            for (int x = 0; x < test_game.grid_size; x++) {
-                if (test_game.enemy_grid[y][x] == SHIP && (x > 2 || y > 2)) {
-                    test_game.enemy_grid[y][x] = HIT;
-                }
-            }
-        }
-        break;
-    default: 
-        placeShipsRandomly(&test_game, test_game.enemy_grid, test_game.grid_size, test_game.enemy_ships);
-        break;
-    }
-
-    return test_game;
-}
-
-void printBenchmarkResults(const char* test_name, BenchmarkStats stats) {
-    printf("\n=== %s ===\n", test_name);
-    printf("Iterations: 100\n");
-    printf("Average time: %.6f seconds\n", stats.avg_time);
-    printf("Minimum time: %.6f seconds\n", stats.min_time);
-    printf("Maximum time: %.6f seconds\n", stats.max_time);
-    printf("Performance range: %.6f seconds\n", stats.max_time - stats.min_time);
-    printf("==============================\n");
-}
-
-void benchmarkMinimaxPerformance() {
-    printf("Starting Minimax performance benchmark...\n");
-
-    BenchmarkStats stats = { 0 };
-    const int iterations = 100;
-
-    for (int i = 0; i < iterations; i++) {
-        GameState test_game = createTestScenario(i);
-
-        clock_t start = clock();
-        Move result = minimax(&test_game, test_game.enemy_grid,
-            test_game.grid_size, 3, 1, -10000.0f, 10000.0f);
-        clock_t end = clock();
-
-        double execution_time = (double)(end - start) / CLOCKS_PER_SEC;
-
-        stats.avg_time += execution_time;
-        if (execution_time < stats.min_time || i == 0)
-            stats.min_time = execution_time;
-        if (execution_time > stats.max_time)
-            stats.max_time = execution_time;
-
-        freeBoard(test_game.player_grid, test_game.grid_size);
-        freeBoard(test_game.enemy_grid, test_game.grid_size);
-
-        if ((i + 1) % 10 == 0) {
-            printf("Completed %d/%d iterations...\n", i + 1, iterations);
-        }
-    }
-
-    stats.avg_time /= iterations;
-    printBenchmarkResults("Minimax Performance Benchmark", stats);
-}
 
 char* win1251_to_utf8(const char* str) {
     int size = MultiByteToWideChar(1251, 0, str, -1, NULL, 0);
@@ -484,7 +353,6 @@ int availableCells(GameState* game, CellState** grid, char grid_size) {
 }
 
 int main() {
-
     setlocale(LC_ALL, "Rus");
     GameState game = { 0 };
     game.current_mode = MENU;
@@ -504,7 +372,6 @@ int main() {
     game.current_difficult = EASY;
 
     if (initSDL(&game)) {
-
         return 1;
     }
 
@@ -523,24 +390,27 @@ int main() {
     bool win = false;
     char end_random = 1;
     SDL_Event event;
+
     while (!quit) {
         Uint64 current_time = SDL_GetTicks();
         float delta_time = (current_time - last_time) / 1000.0f;
         last_time = current_time;
         checkStorm(&game, delta_time);
+
         while (SDL_PollEvent(&event) != 0) {
             if (event.type == SDL_EVENT_QUIT) {
                 quit = 1;
             }
             else if (event.type == SDL_EVENT_WINDOW_RESIZED) {
-                     game.screen_width = event.window.data1;
-                     game.screen_height = event.window.data2;
-                     initSDL(&game);
-                     initMenu(&game); 
-                     initGame(&game);	
-                   
-                }
-                 else if (event.type == SDL_EVENT_MOUSE_BUTTON_DOWN) {
+                // Обновляем размеры экрана
+                game.screen_width = event.window.data1;
+                game.screen_height = event.window.data2;
+                // Пересчитываем размеры и позиции
+                initSDL(&game); // Повторно инициализируем размеры
+                initMenu(&game); // Обновляем позиции кнопок меню
+                initGame(&game); // Обновляем позиции кнопок игры
+            }
+            else if (event.type == SDL_EVENT_MOUSE_BUTTON_DOWN) {
                 short int mouseX = event.button.x;
                 short int mouseY = event.button.y;
 
@@ -561,17 +431,12 @@ int main() {
                             char* player_name;
 
                             if (!name_entered) {
-
                                 player_name = handleTextInput(&game);
-
                                 while (player_name == NULL) {
                                     player_name = handleTextInput(&game);
                                 }
-
                                 addPlayerToLeaderboard(&game, player_name, game.turns_count);
-
                                 free(player_name);
-
                                 name_entered = true;
                             }
                         }
@@ -646,14 +511,14 @@ int main() {
         char res;
         if (game.current_user.comp == 1) {
             if (game.current_mode == PLAYING && game.player_turn) {
-                res = computerTurnWithMinimax(&game, game.enemy_grid, game.grid_size, 1, &computerHitListHead, game.player_grid);
+                res = computerTurn(&game, game.enemy_grid, game.grid_size, 1, &computerHitListHead, game.player_grid);
                 if (res != 1) {
                     game.player_turn = 0;
                 }
             }
             SDL_Delay(160);
             if (game.current_mode == PLAYING && !game.player_turn) {
-                res = computerTurnWithMinimax(&game, game.player_grid, game.grid_size, 0, &computerHitListHead, game.enemy_grid);
+                res = computerTurn(&game, game.player_grid, game.grid_size, 0, &computerHitListHead, game.enemy_grid);
                 if (res != 1) {
                     game.player_turn = 1;
                 }
@@ -661,7 +526,7 @@ int main() {
         }
         else {
             if (game.current_mode == PLAYING && !game.player_turn) {
-                res = computerTurnWithMinimax(&game, game.player_grid, game.grid_size, 1, &computerHitListHead, game.player_grid);
+                res = computerTurn(&game, game.player_grid, game.grid_size, 1, &computerHitListHead, game.player_grid);
                 if (res != 1) {
                     game.player_turn = 1;
                 }
@@ -782,6 +647,7 @@ char initSDL(GameState* game) {
     }
     SDL_SetRenderDrawColor(game->renderer, 255, 255, 255, 255);
     return 0;
+
     int base_font_size = (int)(game->screen_height * 0.04f);
     game->font = TTF_OpenFont("font.ttf", base_font_size);
 }
@@ -956,16 +822,18 @@ SaveData parseSaveFile(GameState* game, const char* save_file) {
 }
 
 void initMenu(GameState* game) {
-    float button_width_ratio = MENU_BUTTON_WIDTH_RATIO;
-    float button_height_ratio = MENU_BUTTON_HEIGHT_RATIO; 
-    float start_y_ratio = 0.2f;
-    float spacing_ratio = 0.07f;
+    // Процентные отступы и размеры
+    float button_width_ratio = MENU_BUTTON_WIDTH_RATIO; // 40% ширины экрана
+    float button_height_ratio = MENU_BUTTON_HEIGHT_RATIO; // 5% высоты экрана
+    float start_y_ratio = 0.2f; // Начальная позиция по Y (20% от верха)
+    float spacing_ratio = 0.07f; // Отступ между кнопками (7% высоты экрана)
 
     game->menu_button_width = (int)(game->screen_width * button_width_ratio);
     game->menu_button_height = (int)(game->screen_height * button_height_ratio);
 
+    // Главное меню
     for (int i = 0; i < MAIN_BUTTONS_COUNT; ++i) {
-        main_menu_buttons[i].x_pos = game->screen_width / 2; 
+        main_menu_buttons[i].x_pos = game->screen_width / 2; // Центр по X
         main_menu_buttons[i].y_pos = (int)(game->screen_height * (start_y_ratio + i * spacing_ratio));
 
         main_menu_buttons[i].left = main_menu_buttons[i].x_pos - game->menu_button_width / 2;
@@ -974,6 +842,7 @@ void initMenu(GameState* game) {
         main_menu_buttons[i].bottom = main_menu_buttons[i].y_pos + game->menu_button_height / 2;
     }
 
+    // Меню настроек
     for (int i = 0; i < SETTINGS_BUTTONS_COUNT; ++i) {
         settings_menu_buttons[i].x_pos = game->screen_width / 2;
         settings_menu_buttons[i].y_pos = (int)(game->screen_height * (start_y_ratio + i * spacing_ratio));
@@ -985,6 +854,7 @@ void initMenu(GameState* game) {
     }
     settings_menu_buttons[2].is_pressed = true;
 
+    // Меню сохранений
     for (int i = 0; i < MAX_SAVES; ++i) {
         game->saves_buttons[i].x_pos = game->screen_width / 2;
         game->saves_buttons[i].y_pos = (int)(game->screen_height * (start_y_ratio + i * spacing_ratio));
@@ -998,8 +868,9 @@ void initMenu(GameState* game) {
         game->saves_buttons[i].label = (game->saves[i].date && game->saves[i].date[0] != '\0') ? game->saves[i].date : "Пусто";
     }
 
+    // Кнопка "В меню" для таблицы лидеров
     leaderboard_buttons[0].x_pos = game->screen_width / 2;
-    leaderboard_buttons[0].y_pos = (int)(game->screen_height * 0.9f);
+    leaderboard_buttons[0].y_pos = (int)(game->screen_height * 0.9f); // 90% от верха
     leaderboard_buttons[0].left = leaderboard_buttons[0].x_pos - game->menu_button_width / 2;
     leaderboard_buttons[0].right = leaderboard_buttons[0].x_pos + game->menu_button_width / 2;
     leaderboard_buttons[0].top = leaderboard_buttons[0].y_pos - game->menu_button_height / 2;
@@ -1007,8 +878,9 @@ void initMenu(GameState* game) {
     leaderboard_buttons[0].is_pressed = false;
     leaderboard_buttons[0].is_active = true;
 
+    // Кнопка "В меню" для экрана победы
     victory_buttons[0].x_pos = game->screen_width / 2;
-    victory_buttons[0].y_pos = (int)(game->screen_height * 0.7f); 
+    victory_buttons[0].y_pos = (int)(game->screen_height * 0.7f); // 70% от верха
     victory_buttons[0].left = victory_buttons[0].x_pos - game->menu_button_width / 2;
     victory_buttons[0].right = victory_buttons[0].x_pos + game->menu_button_width / 2;
     victory_buttons[0].top = victory_buttons[0].y_pos - game->menu_button_height / 2;
@@ -1093,460 +965,6 @@ void placeShip(GameState* game, CellState** grid, short int startX, short int st
     }
 }
 
-
-
-char executeComputerMove(GameState* game, CellState** grid, char grid_size,
-    short int x, short int y, char user, HitCell** hitListHead) {
-
-    printf("Выполнение хода компьютера: x=%d, y=%d, состояние до=%d, user=%d\n",
-        x, y, grid[y][x], user);
-
-    switch (grid[y][x]) {
-    case SHIP: {
-        printf("-> ПОПАДАНИЕ в корабль!\n");
-
-        grid[y][x] = HIT;
-
-        if (game->computer.chanceToHit != 1) {
-            addHitCell(hitListHead, x, y);
-            printf("-> Добавлена в список попаданий\n");
-        }
-
-        if (user == 1) {
-            for (int i = 0; i < game->player_ships_count; i++) {
-                Ship* ship = &game->player_ships[i];
-
-                if (ship->orientation == 0) { 
-                    if (y == ship->startY && x >= ship->startX && x < ship->startX + ship->length) {
-                        ship->hits++;
-                        printf("-> Попадание в корабль игрока %d (длина=%d, попаданий=%d)\n",
-                            i, ship->length, ship->hits);
-
-                        if (isShipSunk(game, grid, grid_size, ship)) {
-                            printf("-> Корабль игрока %d ПОТОПЛЕН!\n", i);
-                            if (game->computer.chanceToHit != 1) {
-                                clearHitList(hitListHead);
-                                printf("-> Список попаданий очищен\n");
-                            }
-                        }
-                        break;
-                    }
-                }
-                else { 
-                    if (x == ship->startX && y >= ship->startY && y < ship->startY + ship->length) {
-                        ship->hits++;
-                        printf("-> Попадание в корабль игрока %d (длина=%d, попаданий=%d)\n",
-                            i, ship->length, ship->hits);
-
-                        if (isShipSunk(game, grid, grid_size, ship)) {
-                            printf("-> Корабль игрока %d ПОТОПЛЕН!\n", i);
-                            if (game->computer.chanceToHit != 1) {
-                                clearHitList(hitListHead);
-                                printf("-> Список попаданий очищен\n");
-                            }
-                        }
-                        break;
-                    }
-                }
-            }
-        }
-        else {
-            for (int i = 0; i < game->enemy_ships_count; i++) {
-                Ship* ship = &game->enemy_ships[i];
-
-                if (ship->orientation == 0) { 
-                    if (y == ship->startY && x >= ship->startX && x < ship->startX + ship->length) {
-                        ship->hits++;
-                        printf("-> Попадание в корабль противника %d (длина=%d, попаданий=%d)\n",
-                            i, ship->length, ship->hits);
-
-                        if (isShipSunk(game, grid, grid_size, ship)) {
-                            printf("-> Корабль противника %d ПОТОПЛЕН!\n", i);
-                            if (game->computer.chanceToHit != 1) {
-                                clearHitList(hitListHead);
-                                printf("-> Список попаданий очищен\n");
-                            }
-                        }
-                        break;
-                    }
-                }
-                else { 
-                    if (x == ship->startX && y >= ship->startY && y < ship->startY + ship->length) {
-                        ship->hits++;
-                        printf("-> Попадание в корабль противника %d (длина=%d, попаданий=%d)\n",
-                            i, ship->length, ship->hits);
-
-                        if (isShipSunk(game, grid, grid_size, ship)) {
-                            printf("-> Корабль противника %d ПОТОПЛЕН!\n", i);
-                            if (game->computer.chanceToHit != 1) {
-                                clearHitList(hitListHead);
-                                printf("-> Список попаданий очищен\n");
-                            }
-                        }
-                        break;
-                    }
-                }
-            }
-        }
-
-        game->is_hit = 1;
-        printf("-> Флаг is_hit установлен в 1\n");
-
-        return 1; 
-    }
-
-    case MINE: {
-        printf("-> АКТИВАЦИЯ МИНЫ!\n");
-
-        if (user == 1) {
-            printf("-> Мина на поле игрока, стреляем по противнику\n");
-            shootCell(game, game->player_grid, game->enemy_grid, x, y, grid_size);
-        }
-        else {
-            printf("-> Мина на поле противника, стреляем по игроку\n");
-            shootCell(game, game->enemy_grid, game->player_grid, x, y, grid_size);
-        }
-
-        game->is_hit = -2;
-        printf("-> Флаг is_hit установлен в -2 (мина)\n");
-
-        return 0; 
-    }
-
-    case WATER: {
-        printf("-> ПРОМАХ\n");
-
-        grid[y][x] = MISS;
-
-        game->is_hit = 0;
-        printf("-> Флаг is_hit установлен в 0\n");
-
-        return 0;
-    }
-
-    case HIT:
-    case MISS: {
-        printf("-> Клетка уже обстреляна (состояние=%d)\n", grid[y][x]);
-
-        return 0;
-    }
-
-    default: {
-        printf("-> ОШИБКА: неизвестное состояние клетки: %d\n", grid[y][x]);
-        return 0;
-    }
-    }
-}
-int compareMoves(const void* a, const void* b) {
-    const Move* moveA = (const Move*)a;
-    const Move* moveB = (const Move*)b;
-    if (moveA->score > moveB->score) return -1;
-    if (moveA->score < moveB->score) return 1;
-    return 0;
-}
-
-float calculateMovePriority(GameState* game, CellState** grid, char grid_size,
-    short int x, short int y, CellState cell_state) {
-    float priority = 0.0f;
-
-    if (cell_state == SHIP) {
-        priority += 1000.0f;
-    }
-    else if (cell_state == MINE) {
-        priority += 200.0f;
-    }
-
-    int hit_neighbors = 0;
-    int pattern_bonus = 0;
-
-    for (int dy = -1; dy <= 1; dy++) {
-        for (int dx = -1; dx <= 1; dx++) {
-            if (dx == 0 && dy == 0) continue;
-
-            short int nx = x + dx;
-            short int ny = y + dy;
-
-            if (nx >= 0 && nx < grid_size && ny >= 0 && ny < grid_size) {
-                if (grid[ny][nx] == HIT) {
-                    hit_neighbors++;
-
-                    if ((dx == 0 && checkLineHits(grid, grid_size, x, y, 0, 1)) ||  
-                        (dy == 0 && checkLineHits(grid, grid_size, x, y, 1, 0))) {  
-                        pattern_bonus += 50;
-                    }
-                }
-            }
-        }
-    }
-
-    priority += hit_neighbors * 30.0f;
-    priority += pattern_bonus;
-
-    if (isEarlyGame(game)) {
-        float center_x = grid_size / 2.0f;
-        float center_y = grid_size / 2.0f;
-        float distance_to_center = sqrtf(powf(x - center_x, 2) + powf(y - center_y, 2));
-        priority += (grid_size - distance_to_center) * 2.0f;
-    }
-
-    priority += (rand() % 20);
-
-    return priority;
-}
-
-char checkLineHits(CellState** grid, char grid_size, short int x, short int y,
-    short int dx, short int dy) {
-    int consecutive_hits = 0;
-
-    for (int i = 1; i <= 4; i++) {
-        short int nx = x + dx * i;
-        short int ny = y + dy * i;
-        if (nx >= 0 && nx < grid_size && ny >= 0 && ny < grid_size) {
-            if (grid[ny][nx] == HIT) consecutive_hits++;
-            else break;
-        }
-    }
-
-    for (int i = 1; i <= 4; i++) {
-        short int nx = x - dx * i;
-        short int ny = y - dy * i;
-        if (nx >= 0 && nx < grid_size && ny >= 0 && ny < grid_size) {
-            if (grid[ny][nx] == HIT) consecutive_hits++;
-            else break;
-        }
-    }
-
-    return consecutive_hits >= 2;
-}
-
-char isEarlyGame(GameState* game) {
-    return game->total_turns < (game->grid_size * game->grid_size) / 3;
-}
-
-char simulateComputerMove(GameState* game, CellState** grid, char grid_size,
-    short int x, short int y, char user, HitCell** hitListHead) {
-
-    if (grid[y][x] == SHIP) {
-        grid[y][x] = HIT;
-        return 1;
-    }
-    else if (grid[y][x] == MINE) {
-        grid[y][x] = MISS;
-        if (rand() % 100 < 50) {
-            for (int i = 0; i < 10; i++) {
-                short int mx = rand() % grid_size;
-                short int my = rand() % grid_size;
-                if (grid[my][mx] == SHIP) {
-                    grid[my][mx] = HIT;
-                    break;
-                }
-            }
-        }
-        return 0;
-    }
-    else {
-        grid[y][x] = MISS;
-        return 0;
-    }
-}
-
-float evaluateBoardForMinimax(GameState* game, CellState** grid, char grid_size, char is_maximizing) {
-    int our_hits = 0;
-    int enemy_ships_remaining = 0;
-
-    for (int y = 0; y < grid_size; y++) {
-        for (int x = 0; x < grid_size; x++) {
-            if (grid[y][x] == HIT) {
-                our_hits++;
-            }
-            else if (grid[y][x] == SHIP) {
-                enemy_ships_remaining++;
-            }
-        }
-    }
-
-    float score = our_hits * 10.0f - enemy_ships_remaining * 25.0f;
-    return is_maximizing ? score : -score;
-}
-void freeSimulatedGrid(CellState** grid, char grid_size) {
-    if (grid == NULL) return;
-
-    for (int i = 0; i < grid_size; i++) {
-        if (grid[i] != NULL) {
-            free(grid[i]);
-        }
-    }
-    free(grid);
-}
-CellState** copyGrid(CellState** original, char grid_size) {
-    CellState** new_grid = malloc(sizeof(CellState*) * grid_size);
-    for (int i = 0; i < grid_size; i++) {
-        new_grid[i] = malloc(sizeof(CellState) * grid_size);
-        for (int j = 0; j < grid_size; j++) {
-            new_grid[i][j] = original[i][j];
-        }
-    }
-    return new_grid;
-}
-Move minimax(GameState* game, CellState** grid, char grid_size, int depth,
-    int is_maximizing, float alpha, float beta) {
-
-    Move best_move = { -1, -1, is_maximizing ? -10000.0f : 10000.0f };
-
-    if (depth == 0) {
-        best_move.score = evaluateBoardForMinimax(game, grid, grid_size, is_maximizing);
-        return best_move;
-    }
-
-    int total_moves = 0;
-    for (int y = 0; y < grid_size; y++) {
-        for (int x = 0; x < grid_size; x++) {
-            if (grid[y][x] == WATER || grid[y][x] == SHIP || grid[y][x] == MINE) {
-                total_moves++;
-            }
-        }
-    }
-
-    if (total_moves == 0) {
-        best_move.score = evaluateBoardForMinimax(game, grid, grid_size, is_maximizing);
-        return best_move;
-    }
-
-    Move* all_moves = malloc(sizeof(Move) * total_moves);
-    int move_count = 0;
-
-    for (int y = 0; y < grid_size; y++) {
-        for (int x = 0; x < grid_size; x++) {
-            CellState cell_state = grid[y][x];
-
-            if (cell_state == WATER || cell_state == SHIP || cell_state == MINE) {
-                float priority = calculateMovePriority(game, grid, grid_size, x, y, cell_state);
-
-                all_moves[move_count].x = x;
-                all_moves[move_count].y = y;
-                all_moves[move_count].score = priority;
-                move_count++;
-            }
-        }
-    }
-
-    qsort(all_moves, move_count, sizeof(Move), compareMoves);
-
-    int candidates_to_analyze = (move_count < 15) ? move_count : 15;
-
-    if (is_maximizing) {
-        best_move.score = -10000.0f;
-
-        for (int i = 0; i < candidates_to_analyze; i++) {
-            GameState simulated_game = *game;
-            simulated_game.player_grid = copyGrid(grid, grid_size);
-            simulated_game.enemy_grid = copyGrid(game->enemy_grid, grid_size);
-
-            char result = simulateComputerMove(&simulated_game, simulated_game.player_grid, grid_size,
-                all_moves[i].x, all_moves[i].y, 1, NULL);
-
-            Move current_move = minimax(&simulated_game, simulated_game.player_grid, grid_size,
-                depth - 1, 0, alpha, beta);
-
-            freeSimulatedGrid(simulated_game.player_grid, grid_size);
-            freeSimulatedGrid(simulated_game.enemy_grid, grid_size);
-
-            if (current_move.score > best_move.score) {
-                best_move.x = all_moves[i].x;
-                best_move.y = all_moves[i].y;
-                best_move.score = current_move.score;
-            }
-
-            alpha = fmaxf(alpha, best_move.score);
-            if (beta <= alpha) break;
-        }
-    }
-    else {
-        best_move.score = 10000.0f;
-
-        for (int i = 0; i < candidates_to_analyze; i++) {
-            GameState simulated_game = *game;
-            simulated_game.enemy_grid = copyGrid(grid, grid_size);
-            simulated_game.player_grid = copyGrid(game->player_grid, grid_size);
-
-            char result = simulateComputerMove(&simulated_game, simulated_game.enemy_grid, grid_size,
-                all_moves[i].x, all_moves[i].y, 0, NULL);
-
-            Move current_move = minimax(&simulated_game, simulated_game.enemy_grid, grid_size,
-                depth - 1, 1, alpha, beta);
-
-            freeSimulatedGrid(simulated_game.player_grid, grid_size);
-            freeSimulatedGrid(simulated_game.enemy_grid, grid_size);
-
-            if (current_move.score < best_move.score) {
-                best_move.x = all_moves[i].x;
-                best_move.y = all_moves[i].y;
-                best_move.score = current_move.score;
-            }
-
-            beta = fminf(beta, best_move.score);
-            if (beta <= alpha) break;
-        }
-    }
-
-    free(all_moves);
-    return best_move;
-}
-
-
-char computerTurnWithMinimax(GameState* game, CellState** grid, char grid_size,
-    char user, HitCell** hitListHead, CellState** grid_for_comp) {
-
-    if (game->current_difficult == EASY) {
-        return computerTurn(game, grid, grid_size, user, hitListHead, grid_for_comp);
-    }
-
-    printf("=== MINIMAX АНАЛИЗ ХОДА ===\n");
-
-    int depth;
-    if (game->current_difficult == NORMAL) {
-        depth = 1;
-    }
-    else { 
-        depth = 3; 
-    }
-
-    Move best_move = minimax(game, grid, grid_size, depth, 1, -10000.0f, 10000.0f);
-
-    if (best_move.x != -1 && best_move.y != -1) {
-        printf("Minimax выбрал ход: x=%d, y=%d (оценка: %.2f)\n",
-            best_move.x, best_move.y, best_move.score);
-
-        char result = executeComputerMove(game, grid, grid_size, best_move.x, best_move.y,
-            user, hitListHead);
-
-        game->turns_count++;
-        game->total_turns++;
-
-        short int x_offset, y_offset;
-        if (user == 1) {
-            x_offset = game->player_x_offset;
-            y_offset = game->player_y_offset;
-            printf("Стреляем по игроку\n");
-        }
-        else {
-            x_offset = game->enemy_x_offset;
-            y_offset = game->enemy_y_offset;
-            printf("Стреляем по противнику\n");
-        }
-
-       
-       
-        printf("Состояние клетки: %d\n", grid[best_move.y][best_move.x]);
-        printf("=== ХОД ВЫПОЛНЕН ===\n");
-
-        return result;
-    }
-    else {
-        printf("Minimax не нашел хода, используем обычный алгоритм\n");
-        return computerTurn(game, grid, grid_size, user, hitListHead, grid_for_comp);
-    }
-}
 char tryShipOnEdge(GameState* game, CellState** grid, char grid_size, char length, char orientation, short int* x, short int* y) {
     short int attempts = 0;
     while (attempts < 1000) {
@@ -1688,9 +1106,7 @@ void shuffle_for_xy(GameState* game, short int arr[][2], int size) {
     }
 }
 
-
 char computerTurn(GameState* game, CellState** grid, char grid_size, char user, HitCell** hitListHead, CellState** grid_for_comp) {
-   
     CellState** temp = grid;
     if (game->computer_radars_left > 0 && (rand() % 100) < 10) {
         if (game->current_user.comp == 1) {
@@ -2209,6 +1625,7 @@ void drawButton(GameState* game, Button button) {
 
     SDL_RenderFillRect(game->renderer, &buttonRect);
     drawText(game, button.x_pos, button.y_pos, button.label, game->screen_height * 0.015f);
+
 }
 
 void drawCell(GameState* game, short int x, short int y, CellState state, short int x_offset, short int y_offset) {
@@ -2273,6 +1690,7 @@ void drawText(GameState* game, short int x_offset, short int y_offset, const cha
     SDL_Texture* texture = NULL;
     int scaled_font_size = (int)(game->screen_height * (font_size / 1080.0f));
     TTF_SetFontSize(game->font, scaled_font_size);
+
     SDL_Color color = { 0, 0, 0 };
     char* utf8_text = win1251_to_utf8(text);
     surface = TTF_RenderText_Solid(game->font, utf8_text, 0, color);
@@ -2296,22 +1714,26 @@ void drawBackground(GameState* game) {
 
 void renderGame(GameState* game, float delta_time) {
     drawBackground(game);
-    int font_size = (int)(game->screen_height * 0.03f); 
+    int font_size = (int)(game->screen_height * 0.03f); // Размер шрифта 3% высоты экрана
 
+    // Фон для текста и кнопок
     SDL_SetRenderDrawColor(game->renderer, 242, 204, 195, 255);
-    SDL_FRect rect = { 0, 0, game->screen_width, (int)(game->screen_height * 0.1f) };
+    SDL_FRect rect = { 0, 0, game->screen_width, (int)(game->screen_height * 0.1f) }; // Верхние 10% экрана
     SDL_RenderFillRect(game->renderer, &rect);
     rect.h = game->screen_height;
-    rect.w = game->menu_button_width + (int)(game->screen_width * 0.05f); 
+    rect.w = game->menu_button_width + (int)(game->screen_width * 0.05f); // 5% ширины для отступа
     SDL_RenderFillRect(game->renderer, &rect);
 
+    // Отрисовка игровых полей (без изменений)
     drawBoard(game, game->player_grid, game->grid_size, game->player_x_offset, game->player_y_offset);
     drawBoard(game, game->enemy_grid, game->grid_size, game->enemy_x_offset, game->enemy_y_offset);
 
+    // Отрисовка кнопок
     for (int i = 0; i < 4; ++i) {
         drawButton(game, game_buttons[i]);
     }
 
+    // Текст в зависимости от режима игры
     if (game->current_mode == PLACING_SHIPS) {
         if (game->current_user.comp != 1) {
             drawText(game, game->screen_width / 2, (int)(game->screen_height * 0.05f), "Выберите расположение своих кораблей.", font_size);
@@ -2377,8 +1799,8 @@ void renderGame(GameState* game, float delta_time) {
 
 void renderMenu(GameState* game) {
     drawBackground(game);
-    int font_size = (int)(game->screen_height * 0.015f); 
-    int title_font_size = (int)(game->screen_height * 0.04f); 
+    int font_size = (int)(game->screen_height * 0.015f); // Размер шрифта 3% высоты экрана
+    int title_font_size = (int)(game->screen_height * 0.04f); // Заголовок 4% высоты экрана
 
     if (game->menu_state == MAIN_MENU) {
         drawText(game, game->screen_width / 2, (int)(game->screen_height * 0.1f), "Морской бой с бонусами", title_font_size);
@@ -2390,7 +1812,7 @@ void renderMenu(GameState* game) {
         y_pos += game->screen_height * 0.03f;
         drawText(game, game->screen_width / 2, (int)y_pos, "Геймдевы: Дмитриева А.В. и Виноградова А.Д.", font_size - 4);
         y_pos += game->screen_height * 0.03f;
-        drawText(game, game->screen_width / 2, (int)y_pos, "При наставничестве Панкова И.Д. и Малышева Е.В.", font_size - 4);
+        drawText(game, game->screen_width / 2, (int)y_pos, "При наставничестве Панкова И. Д.", font_size - 4);
         y_pos += game->screen_height * 0.03f;
         drawText(game, game->screen_width / 2, (int)y_pos, "Санкт-Петербургский Политехнический Университет Петра Великого", font_size - 4);
         y_pos += game->screen_height * 0.03f;
@@ -2412,10 +1834,10 @@ void renderMenu(GameState* game) {
         drawButton(game, leaderboard_buttons[0]);
     }
     else if (game->menu_state == LEADERBOARD_MENU) {
-        float name_col_x = game->screen_width * 0.3f; 
-        float score_col_x = game->screen_width * 0.7f; 
-        float y_pos = game->screen_height * 0.15f;
-        float row_height = game->screen_height * 0.05f; 
+        float name_col_x = game->screen_width * 0.3f; // 30% от левого края
+        float score_col_x = game->screen_width * 0.7f; // 70% от левого края
+        float y_pos = game->screen_height * 0.15f; // Начало таблицы на 15% высоты
+        float row_height = game->screen_height * 0.05f; // Высота строки 5%
 
         drawText(game, (int)name_col_x, (int)(y_pos - row_height), "Имя", font_size);
         drawText(game, (int)score_col_x, (int)(y_pos - row_height), "Очки", font_size);
@@ -2436,8 +1858,8 @@ void renderMenu(GameState* game) {
             if (game->current_user.comp != 1) {
                 drawText(game, game->screen_width / 2, (int)(game->screen_height * 0.25f), "Вы победили! Введите ваше имя на английском, иначе вы не попадете в таблицу лидеров:", font_size);
                 SDL_FRect inputRect = {
-                    game->screen_width * 0.5f - (game->screen_width * 0.3f) / 2, 
-                    game->screen_height * 0.5f - (game->screen_height * 0.05f) / 2, 
+                    game->screen_width * 0.5f - (game->screen_width * 0.3f) / 2, // 30% ширины экрана
+                    game->screen_height * 0.5f - (game->screen_height * 0.05f) / 2, // 5% высоты
                     game->screen_width * 0.3f,
                     game->screen_height * 0.05f
                 };
@@ -2630,12 +2052,7 @@ void handleButtonClick(GameState* game, Button* button) {
         game_buttons[2].is_active = false;
 
         break;
-    case BUTTON_BENCHMARK:
-        printf("Запуск теста производительности...\n");
-        benchmarkMinimaxPerformance();
-        break;
     }
-
 }
 
 int check_eng(GameState* game, char* str) {
@@ -2705,13 +2122,14 @@ char* handleTextInput(GameState* game) {
 void initGame(GameState* game) {
     float button_width_ratio = MENU_BUTTON_WIDTH_RATIO;
     float button_height_ratio = MENU_BUTTON_HEIGHT_RATIO;
-    float start_x_ratio = 0.1f;
-    float start_y_ratio = 0.2f; 
-    float spacing_ratio = 0.07f;
+    float start_x_ratio = 0.1f; // 10% от левого края
+    float start_y_ratio = 0.2f; // 20% от верха
+    float spacing_ratio = 0.07f; // Отступ 7% высоты экрана
 
     game->menu_button_width = (int)(game->screen_width * button_width_ratio);
     game->menu_button_height = (int)(game->screen_height * button_height_ratio);
 
+    // Кнопки игры
     for (int i = 0; i < 4; i++) {
         game_buttons[i].x_pos = (int)(game->screen_width * start_x_ratio);
         game_buttons[i].y_pos = (int)(game->screen_height * (start_y_ratio + i * spacing_ratio));
