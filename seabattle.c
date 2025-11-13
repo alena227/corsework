@@ -353,7 +353,6 @@ int availableCells(GameState* game, CellState** grid, char grid_size) {
 }
 
 int main() {
-
     setlocale(LC_ALL, "Rus");
     GameState game = { 0 };
     game.current_mode = MENU;
@@ -373,7 +372,6 @@ int main() {
     game.current_difficult = EASY;
 
     if (initSDL(&game)) {
-
         return 1;
     }
 
@@ -392,16 +390,27 @@ int main() {
     bool win = false;
     char end_random = 1;
     SDL_Event event;
+
     while (!quit) {
         Uint64 current_time = SDL_GetTicks();
         float delta_time = (current_time - last_time) / 1000.0f;
         last_time = current_time;
         checkStorm(&game, delta_time);
+
         while (SDL_PollEvent(&event) != 0) {
             if (event.type == SDL_EVENT_QUIT) {
                 quit = 1;
             }
-            if (event.type == SDL_EVENT_MOUSE_BUTTON_DOWN) {
+            else if (event.type == SDL_EVENT_WINDOW_RESIZED) {
+                // Обновляем размеры экрана
+                game.screen_width = event.window.data1;
+                game.screen_height = event.window.data2;
+                // Пересчитываем размеры и позиции
+                initSDL(&game); // Повторно инициализируем размеры
+                initMenu(&game); // Обновляем позиции кнопок меню
+                initGame(&game); // Обновляем позиции кнопок игры
+            }
+            else if (event.type == SDL_EVENT_MOUSE_BUTTON_DOWN) {
                 short int mouseX = event.button.x;
                 short int mouseY = event.button.y;
 
@@ -422,17 +431,12 @@ int main() {
                             char* player_name;
 
                             if (!name_entered) {
-
                                 player_name = handleTextInput(&game);
-
                                 while (player_name == NULL) {
                                     player_name = handleTextInput(&game);
                                 }
-
                                 addPlayerToLeaderboard(&game, player_name, game.turns_count);
-
                                 free(player_name);
-
                                 name_entered = true;
                             }
                         }
@@ -643,6 +647,9 @@ char initSDL(GameState* game) {
     }
     SDL_SetRenderDrawColor(game->renderer, 255, 255, 255, 255);
     return 0;
+
+    int base_font_size = (int)(game->screen_height * 0.04f);
+    game->font = TTF_OpenFont("font.ttf", base_font_size);
 }
 
 void closeSDL(GameState* game) {
@@ -815,35 +822,42 @@ SaveData parseSaveFile(GameState* game, const char* save_file) {
 }
 
 void initMenu(GameState* game) {
-    int y = 200;
+    // Процентные отступы и размеры
+    float button_width_ratio = MENU_BUTTON_WIDTH_RATIO; // 40% ширины экрана
+    float button_height_ratio = MENU_BUTTON_HEIGHT_RATIO; // 5% высоты экрана
+    float start_y_ratio = 0.2f; // Начальная позиция по Y (20% от верха)
+    float spacing_ratio = 0.07f; // Отступ между кнопками (7% высоты экрана)
+
+    game->menu_button_width = (int)(game->screen_width * button_width_ratio);
+    game->menu_button_height = (int)(game->screen_height * button_height_ratio);
+
+    // Главное меню
     for (int i = 0; i < MAIN_BUTTONS_COUNT; ++i) {
-        main_menu_buttons[i].x_pos = game->screen_width / 2;
-        main_menu_buttons[i].y_pos = y;
+        main_menu_buttons[i].x_pos = game->screen_width / 2; // Центр по X
+        main_menu_buttons[i].y_pos = (int)(game->screen_height * (start_y_ratio + i * spacing_ratio));
 
         main_menu_buttons[i].left = main_menu_buttons[i].x_pos - game->menu_button_width / 2;
         main_menu_buttons[i].right = main_menu_buttons[i].x_pos + game->menu_button_width / 2;
         main_menu_buttons[i].top = main_menu_buttons[i].y_pos - game->menu_button_height / 2;
         main_menu_buttons[i].bottom = main_menu_buttons[i].y_pos + game->menu_button_height / 2;
-        y += game->menu_button_height + 50;
     }
-    y = 50;
 
+    // Меню настроек
     for (int i = 0; i < SETTINGS_BUTTONS_COUNT; ++i) {
         settings_menu_buttons[i].x_pos = game->screen_width / 2;
-        settings_menu_buttons[i].y_pos = y;
+        settings_menu_buttons[i].y_pos = (int)(game->screen_height * (start_y_ratio + i * spacing_ratio));
 
         settings_menu_buttons[i].left = settings_menu_buttons[i].x_pos - game->menu_button_width / 2;
         settings_menu_buttons[i].right = settings_menu_buttons[i].x_pos + game->menu_button_width / 2;
         settings_menu_buttons[i].top = settings_menu_buttons[i].y_pos - game->menu_button_height / 2;
         settings_menu_buttons[i].bottom = settings_menu_buttons[i].y_pos + game->menu_button_height / 2;
-
-        y += game->menu_button_height + 50;
     }
     settings_menu_buttons[2].is_pressed = true;
-    y = 200;
+
+    // Меню сохранений
     for (int i = 0; i < MAX_SAVES; ++i) {
         game->saves_buttons[i].x_pos = game->screen_width / 2;
-        game->saves_buttons[i].y_pos = y;
+        game->saves_buttons[i].y_pos = (int)(game->screen_height * (start_y_ratio + i * spacing_ratio));
         game->saves_buttons[i].left = game->saves_buttons[i].x_pos - game->menu_button_width / 2;
         game->saves_buttons[i].right = game->saves_buttons[i].x_pos + game->menu_button_width / 2;
         game->saves_buttons[i].top = game->saves_buttons[i].y_pos - game->menu_button_height / 2;
@@ -852,20 +866,21 @@ void initMenu(GameState* game) {
         game->saves_buttons[i].is_pressed = false;
         game->saves_buttons[i].is_active = true;
         game->saves_buttons[i].label = (game->saves[i].date && game->saves[i].date[0] != '\0') ? game->saves[i].date : "Пусто";
-        y += game->menu_button_height + 50;
     }
-    y = game->screen_height - 100;
+
+    // Кнопка "В меню" для таблицы лидеров
     leaderboard_buttons[0].x_pos = game->screen_width / 2;
-    leaderboard_buttons[0].y_pos = y;
+    leaderboard_buttons[0].y_pos = (int)(game->screen_height * 0.9f); // 90% от верха
     leaderboard_buttons[0].left = leaderboard_buttons[0].x_pos - game->menu_button_width / 2;
     leaderboard_buttons[0].right = leaderboard_buttons[0].x_pos + game->menu_button_width / 2;
     leaderboard_buttons[0].top = leaderboard_buttons[0].y_pos - game->menu_button_height / 2;
     leaderboard_buttons[0].bottom = leaderboard_buttons[0].y_pos + game->menu_button_height / 2;
     leaderboard_buttons[0].is_pressed = false;
     leaderboard_buttons[0].is_active = true;
-    y = 700;
+
+    // Кнопка "В меню" для экрана победы
     victory_buttons[0].x_pos = game->screen_width / 2;
-    victory_buttons[0].y_pos = y;
+    victory_buttons[0].y_pos = (int)(game->screen_height * 0.7f); // 70% от верха
     victory_buttons[0].left = victory_buttons[0].x_pos - game->menu_button_width / 2;
     victory_buttons[0].right = victory_buttons[0].x_pos + game->menu_button_width / 2;
     victory_buttons[0].top = victory_buttons[0].y_pos - game->menu_button_height / 2;
@@ -1609,7 +1624,8 @@ void drawButton(GameState* game, Button button) {
     }
 
     SDL_RenderFillRect(game->renderer, &buttonRect);
-    drawText(game, button.x_pos, button.y_pos, button.label, 24);
+    drawText(game, button.x_pos, button.y_pos, button.label, game->screen_height * 0.015f);
+
 }
 
 void drawCell(GameState* game, short int x, short int y, CellState state, short int x_offset, short int y_offset) {
@@ -1672,7 +1688,9 @@ void drawBoard(GameState* game, CellState** grid, char grid_size, short int x_of
 void drawText(GameState* game, short int x_offset, short int y_offset, const char* text, int font_size) {
     SDL_Surface* surface = NULL;
     SDL_Texture* texture = NULL;
-    TTF_SetFontSize(game->font, font_size);
+    int scaled_font_size = (int)(game->screen_height * (font_size / 1080.0f));
+    TTF_SetFontSize(game->font, scaled_font_size);
+
     SDL_Color color = { 0, 0, 0 };
     char* utf8_text = win1251_to_utf8(text);
     surface = TTF_RenderText_Solid(game->font, utf8_text, 0, color);
@@ -1696,104 +1714,113 @@ void drawBackground(GameState* game) {
 
 void renderGame(GameState* game, float delta_time) {
     drawBackground(game);
+    int font_size = (int)(game->screen_height * 0.03f); // Размер шрифта 3% высоты экрана
+
+    // Фон для текста и кнопок
     SDL_SetRenderDrawColor(game->renderer, 242, 204, 195, 255);
-    SDL_FRect rect = { 0, 0, game->screen_width, 100 };
+    SDL_FRect rect = { 0, 0, game->screen_width, (int)(game->screen_height * 0.1f) }; // Верхние 10% экрана
     SDL_RenderFillRect(game->renderer, &rect);
     rect.h = game->screen_height;
-    rect.w = game->menu_button_width + 40;
+    rect.w = game->menu_button_width + (int)(game->screen_width * 0.05f); // 5% ширины для отступа
     SDL_RenderFillRect(game->renderer, &rect);
+
+    // Отрисовка игровых полей (без изменений)
     drawBoard(game, game->player_grid, game->grid_size, game->player_x_offset, game->player_y_offset);
     drawBoard(game, game->enemy_grid, game->grid_size, game->enemy_x_offset, game->enemy_y_offset);
+
+    // Отрисовка кнопок
     for (int i = 0; i < 4; ++i) {
         drawButton(game, game_buttons[i]);
     }
 
-
+    // Текст в зависимости от режима игры
     if (game->current_mode == PLACING_SHIPS) {
         if (game->current_user.comp != 1) {
-            drawText(game, game->screen_width / 2, 10, "Выберите расположение своих кораблей.", FONT_SIZE);
+            drawText(game, game->screen_width / 2, (int)(game->screen_height * 0.05f), "Выберите расположение своих кораблей.", font_size);
         }
         else {
-            drawText(game, game->screen_width / 2, 10, "Нажмите на любую клетку поля, чтобы начать игру Компьютер против Компьютера.", FONT_SIZE);
+            drawText(game, game->screen_width / 2, (int)(game->screen_height * 0.05f), "Нажмите на любую клетку поля, чтобы начать игру Компьютер против Компьютера.", font_size);
         }
     }
-
     else if (game->current_mode == PLAYING) {
         if (game->turns_count == 0) {
             if (game->current_user.comp != 1) {
-                drawText(game, game->screen_width / 2, 10, "Размещение завершено, начинайте игру!", FONT_SIZE);
+                drawText(game, game->screen_width / 2, (int)(game->screen_height * 0.05f), "Размещение завершено, начинайте игру!", font_size);
             }
             else {
-                drawText(game, game->screen_width / 2, 10, "Игра Компьютер против Компьютера началась!", FONT_SIZE);
+                drawText(game, game->screen_width / 2, (int)(game->screen_height * 0.05f), "Игра Компьютер против Компьютера началась!", font_size);
             }
         }
         else {
             if (game->storm_active) {
-                drawText(game, game->screen_width / 2, 10, "Шторм! Случайная часть кораблей разрушена!", FONT_SIZE);
+                drawText(game, game->screen_width / 2, (int)(game->screen_height * 0.05f), "Шторм! Случайная часть кораблей разрушена!", font_size);
             }
             else {
                 if (game->player_turn) {
-                    drawText(game, game->screen_width / 2, 10, "Ваш ход.", FONT_SIZE);
+                    drawText(game, game->screen_width / 2, (int)(game->screen_height * 0.05f), "Ваш ход.", font_size);
                 }
                 else {
-                    drawText(game, game->screen_width / 2, 10, "Ход компьютера.", FONT_SIZE);
+                    drawText(game, game->screen_width / 2, (int)(game->screen_height * 0.05f), "Ход компьютера.", font_size);
                 }
 
                 if (game->fog_active) {
-                    drawText(game, game->screen_width / 2, 10 + FONT_SIZE, "Туман! Вы не можете увидеть, попали ли вы в корабль.", FONT_SIZE);
+                    drawText(game, game->screen_width / 2, (int)(game->screen_height * 0.08f), "Туман! Вы не можете увидеть, попали ли вы в корабль.", font_size);
                 }
                 else if (game->is_hit == -2) {
-                    drawText(game, game->screen_width / 2, 10 + FONT_SIZE, "о нет! мина", FONT_SIZE);
+                    drawText(game, game->screen_width / 2, (int)(game->screen_height * 0.08f), "о нет! мина", font_size);
                 }
                 else if (game->is_hit >= 0) {
-                    drawText(game, game->screen_width / 2, 10 + FONT_SIZE, game->is_hit ? "Попали!" : "Промах", FONT_SIZE);
+                    drawText(game, game->screen_width / 2, (int)(game->screen_height * 0.08f), game->is_hit ? "Попали!" : "Промах", font_size);
                 }
-
             }
         }
     }
-
     else if (game->current_mode == PLACING_RADAR) {
         if (!game->radar_running) {
-            drawText(game, game->screen_width / 2, 10, "Выберите расположение радара:", FONT_SIZE);
+            drawText(game, game->screen_width / 2, (int)(game->screen_height * 0.05f), "Выберите расположение радара:", font_size);
         }
         else {
-            drawText(game, game->screen_width / 2, 10, "Проверка радара...", FONT_SIZE);
+            drawText(game, game->screen_width / 2, (int)(game->screen_height * 0.05f), "Проверка радара...", font_size);
             drawRadar(game, delta_time);
         }
     }
     else if (game->current_mode == PLACING_MINES) {
-        drawText(game, game->screen_width / 2, 10, "Выберите расположение мин:", FONT_SIZE);
+        drawText(game, game->screen_width / 2, (int)(game->screen_height * 0.05f), "Выберите расположение мин:", font_size);
     }
+
     if (game->current_user.comp != 1) {
         drawText(game, game->player_x_offset + (game->cell_size * game->grid_size) / 2,
-            game->player_y_offset - FONT_SIZE - 50, "Ваше поле", FONT_SIZE);
+            game->player_y_offset - (int)(game->screen_height * 0.1f), "Ваше поле", font_size);
     }
+
     drawStormEffect(game);
     SDL_RenderPresent(game->renderer);
 }
 
 void renderMenu(GameState* game) {
     drawBackground(game);
+    int font_size = (int)(game->screen_height * 0.015f); // Размер шрифта 3% высоты экрана
+    int title_font_size = (int)(game->screen_height * 0.04f); // Заголовок 4% высоты экрана
+
     if (game->menu_state == MAIN_MENU) {
-        drawText(game, game->screen_width / 2, 100, "Морской бой с бонусами", FONT_SIZE + 10);
+        drawText(game, game->screen_width / 2, (int)(game->screen_height * 0.1f), "Морской бой с бонусами", title_font_size);
         for (int i = 0; i < MAIN_BUTTONS_COUNT; ++i) {
             drawButton(game, main_menu_buttons[i]);
         }
-        short int y_pos = main_menu_buttons[MAIN_BUTTONS_COUNT - 1].y_pos + game->menu_button_height + 100;
-        drawText(game, game->screen_width / 2, y_pos, "о программе:", FONT_SIZE);
-        y_pos += 40;
-        drawText(game, game->screen_width / 2, y_pos, "Геймдевы: Дмитриева А.В. и Виноградова А.Д.", FONT_SIZE - 4);
-        y_pos += 30;
-        drawText(game, game->screen_width / 2, y_pos, "При наставничестве Панкова И. Д.", FONT_SIZE - 4);
-        y_pos += 30;
-        drawText(game, game->screen_width / 2, y_pos, "Санкт-Петербургский Политехнический Университет Петра Великого", FONT_SIZE - 4);
-        y_pos += 30;
-        drawText(game, game->screen_width / 2, y_pos, "Институт компьютерных наук и кибербезопасности", FONT_SIZE - 4);
-        y_pos += 30;
-        drawText(game, game->screen_width / 2, y_pos, "Высшая школа кибербезопасности", FONT_SIZE - 4);
-        y_pos += 30;
-        drawText(game, game->screen_width / 2, y_pos, "2025", FONT_SIZE - 4);
+        float y_pos = main_menu_buttons[MAIN_BUTTONS_COUNT - 1].y_pos + game->menu_button_height + (int)(game->screen_height * 0.05f);
+        drawText(game, game->screen_width / 2, (int)y_pos, "о программе:", font_size);
+        y_pos += game->screen_height * 0.03f;
+        drawText(game, game->screen_width / 2, (int)y_pos, "Геймдевы: Дмитриева А.В. и Виноградова А.Д.", font_size - 4);
+        y_pos += game->screen_height * 0.03f;
+        drawText(game, game->screen_width / 2, (int)y_pos, "При наставничестве Панкова И. Д.", font_size - 4);
+        y_pos += game->screen_height * 0.03f;
+        drawText(game, game->screen_width / 2, (int)y_pos, "Санкт-Петербургский Политехнический Университет Петра Великого", font_size - 4);
+        y_pos += game->screen_height * 0.03f;
+        drawText(game, game->screen_width / 2, (int)y_pos, "Институт компьютерных наук и кибербезопасности", font_size - 4);
+        y_pos += game->screen_height * 0.03f;
+        drawText(game, game->screen_width / 2, (int)y_pos, "Высшая школа кибербезопасности", font_size - 4);
+        y_pos += game->screen_height * 0.03f;
+        drawText(game, game->screen_width / 2, (int)y_pos, "2025", font_size - 4);
     }
     else if (game->menu_state == SETTINGS_MENU) {
         for (int i = 0; i < SETTINGS_BUTTONS_COUNT; ++i) {
@@ -1807,58 +1834,52 @@ void renderMenu(GameState* game) {
         drawButton(game, leaderboard_buttons[0]);
     }
     else if (game->menu_state == LEADERBOARD_MENU) {
-        short int nameColX = game->screen_width / 2 - 200;
-        short int scoreColX = game->screen_width / 2 + 200;
-        short int x = game->screen_width / 2;
-        short int y = 150;
-        short int row_height = 50;
+        float name_col_x = game->screen_width * 0.3f; // 30% от левого края
+        float score_col_x = game->screen_width * 0.7f; // 70% от левого края
+        float y_pos = game->screen_height * 0.15f; // Начало таблицы на 15% высоты
+        float row_height = game->screen_height * 0.05f; // Высота строки 5%
 
-        drawText(game, nameColX, y - row_height, "Имя", FONT_SIZE);
-        drawText(game, scoreColX, y - row_height, "Очки", FONT_SIZE);
+        drawText(game, (int)name_col_x, (int)(y_pos - row_height), "Имя", font_size);
+        drawText(game, (int)score_col_x, (int)(y_pos - row_height), "Очки", font_size);
 
         for (int i = 0; i < MAX_PLAYERS; ++i) {
             if (game->leaderboard[i].name[0] == '\0' || game->leaderboard[i].score == -1) {
                 continue;
             }
-
             char scoreText[16];
             snprintf(scoreText, sizeof(scoreText), "%hd", game->leaderboard[i].score);
-
-            drawText(game, nameColX, y + i * row_height, game->leaderboard[i].name, FONT_SIZE);
-            drawText(game, scoreColX, y + i * row_height, scoreText, FONT_SIZE);
+            drawText(game, (int)name_col_x, (int)(y_pos + i * row_height), game->leaderboard[i].name, font_size);
+            drawText(game, (int)score_col_x, (int)(y_pos + i * row_height), scoreText, font_size);
         }
-
         drawButton(game, leaderboard_buttons[0]);
     }
     else if (game->menu_state == VICTORY_MENU) {
         if (game->computer_win != 1) {
             if (game->current_user.comp != 1) {
-                drawText(game, game->screen_width / 2, game->screen_height / 4, "Вы победили! Введите ваше имя на английском, иначе вы не попадете в таблицу лидеров:", FONT_SIZE);
-
+                drawText(game, game->screen_width / 2, (int)(game->screen_height * 0.25f), "Вы победили! Введите ваше имя на английском, иначе вы не попадете в таблицу лидеров:", font_size);
                 SDL_FRect inputRect = {
-                    game->screen_width / 2 - 600 / 2,
-                    game->screen_height / 2 - 32 / 2,
-                    600,
-                    32 };
-
+                    game->screen_width * 0.5f - (game->screen_width * 0.3f) / 2, // 30% ширины экрана
+                    game->screen_height * 0.5f - (game->screen_height * 0.05f) / 2, // 5% высоты
+                    game->screen_width * 0.3f,
+                    game->screen_height * 0.05f
+                };
                 SDL_SetRenderDrawColor(game->renderer, 140, 173, 167, 255);
                 SDL_RenderFillRect(game->renderer, &inputRect);
             }
             else {
-                drawText(game, game->screen_width / 2, game->screen_height / 4, "Компьютер 1 победил!", FONT_SIZE);
+                drawText(game, game->screen_width / 2, (int)(game->screen_height * 0.25f), "Компьютер 1 победил!", font_size);
             }
         }
         else {
             if (game->current_user.comp != 1) {
-                drawText(game, game->screen_width / 2, game->screen_height / 4, "Компьютер победил!", FONT_SIZE);
+                drawText(game, game->screen_width / 2, (int)(game->screen_height * 0.25f), "Компьютер победил!", font_size);
             }
             else {
-                drawText(game, game->screen_width / 2, game->screen_height / 4, "Компьютер 2 победил!", FONT_SIZE);
+                drawText(game, game->screen_width / 2, (int)(game->screen_height * 0.25f), "Компьютер 2 победил!", font_size);
             }
         }
         victory_buttons[0].is_active = true;
         drawButton(game, victory_buttons[0]);
-
     }
 }
 
@@ -2099,32 +2120,25 @@ char* handleTextInput(GameState* game) {
 }
 
 void initGame(GameState* game) {
-    short int x = 150;
-    short int y = 200;
-    game_buttons[1].x_pos = x;
-    game_buttons[1].y_pos = y;
-    game_buttons[1].left = game_buttons[1].x_pos - game->menu_button_width / 2;
-    game_buttons[1].right = game_buttons[1].x_pos + game->menu_button_width / 2;
-    game_buttons[1].top = game_buttons[1].y_pos - game->menu_button_height / 2;
-    game_buttons[1].bottom = game_buttons[1].y_pos + game->menu_button_height / 2;
-    game_buttons[0].x_pos = x;
-    game_buttons[0].y_pos = y - 50;
-    game_buttons[0].left = game_buttons[0].x_pos - game->menu_button_width / 2;
-    game_buttons[0].right = game_buttons[0].x_pos + game->menu_button_width / 2;
-    game_buttons[0].top = game_buttons[0].y_pos - game->menu_button_height / 2;
-    game_buttons[0].bottom = game_buttons[0].y_pos + game->menu_button_height / 2;
-    game_buttons[2].x_pos = x;
-    game_buttons[2].y_pos = y - 100;
-    game_buttons[2].left = game_buttons[2].x_pos - game->menu_button_width / 2;
-    game_buttons[2].right = game_buttons[2].x_pos + game->menu_button_width / 2;
-    game_buttons[2].top = game_buttons[2].y_pos - game->menu_button_height / 2;
-    game_buttons[2].bottom = game_buttons[2].y_pos + game->menu_button_height / 2;
-    game_buttons[3].x_pos = x;
-    game_buttons[3].y_pos = y - 150;
-    game_buttons[3].left = game_buttons[3].x_pos - game->menu_button_width / 2;
-    game_buttons[3].right = game_buttons[3].x_pos + game->menu_button_width / 2;
-    game_buttons[3].top = game_buttons[3].y_pos - game->menu_button_height / 2;
-    game_buttons[3].bottom = game_buttons[3].y_pos + game->menu_button_height / 2;
+    float button_width_ratio = MENU_BUTTON_WIDTH_RATIO;
+    float button_height_ratio = MENU_BUTTON_HEIGHT_RATIO;
+    float start_x_ratio = 0.1f; // 10% от левого края
+    float start_y_ratio = 0.2f; // 20% от верха
+    float spacing_ratio = 0.07f; // Отступ 7% высоты экрана
+
+    game->menu_button_width = (int)(game->screen_width * button_width_ratio);
+    game->menu_button_height = (int)(game->screen_height * button_height_ratio);
+
+    // Кнопки игры
+    for (int i = 0; i < 4; i++) {
+        game_buttons[i].x_pos = (int)(game->screen_width * start_x_ratio);
+        game_buttons[i].y_pos = (int)(game->screen_height * (start_y_ratio + i * spacing_ratio));
+        game_buttons[i].left = game_buttons[i].x_pos - game->menu_button_width / 2;
+        game_buttons[i].right = game_buttons[i].x_pos + game->menu_button_width / 2;
+        game_buttons[i].top = game_buttons[i].y_pos - game->menu_button_height / 2;
+        game_buttons[i].bottom = game_buttons[i].y_pos + game->menu_button_height / 2;
+    }
+
     game->computer_mines_left = 2;
     game->computer_radars_left = 2;
 }
@@ -2149,7 +2163,7 @@ void startGame(GameState* game) {
             game->player_grid[y][x] = MINE;
             game->computer2_mines_left--;
         }
-     
+
     }
     game->current_mode = PLAYING;
 }
@@ -2327,9 +2341,9 @@ char handleShipPlacement(GameState* game, SDL_Event event, short int x_offset, s
                 game->player_ships[game->player_ships_count].startY = gridY;
                 game->player_ships[game->player_ships_count].orientation = 0;
 
-         
+
                 game->player_ships_count++;
-              
+
 
                 return 1;
             }
@@ -2673,3 +2687,6 @@ void drawStormEffect(GameState* game) {
         }
     }
 }
+
+
+//helllo ibks
