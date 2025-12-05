@@ -7,8 +7,7 @@
 #include <SDL3_ttf/SDL_ttf.h>
 #include <locale.h>
 #include <stdbool.h>
-#include <windows.h> 
-
+#include <windows.h>
 
 #define RU(text) win1251_to_utf8(text)
 
@@ -22,63 +21,29 @@
 #define MAIN_BUTTONS_COUNT      4
 #define SETTINGS_BUTTONS_COUNT  9
 
-#define CELL_SIZE_RATIO          0.03f  
-#define MENU_BUTTON_WIDTH_RATIO 0.4f   
-#define MENU_BUTTON_HEIGHT_RATIO 0.05f 
+#define CELL_SIZE_RATIO          0.03f
+#define MENU_BUTTON_WIDTH_RATIO  0.4f
+#define MENU_BUTTON_HEIGHT_RATIO 0.05f
 
+/* ---------- ХЕШ-ТАБЛИЦА КООРДИНАТ ДЛЯ ИИ ---------- */
+/* Размер поля максимум 15x15, кодируем (x,y) в один short key */
+#define TARGET_HASH_CAPACITY 512   /* степень двойки, с запасом */
 
-typedef struct HitCell {
-    short int x;
-    short int y;
-    struct HitCell* next;
-} HitCell;
+typedef struct {
+    short int key;   /* закодированная координата */
+    char      state; /* 0 = пусто, 1 = занято, 2 = удалено/использовано */
+} TargetHashEntry;
 
-void addHitCell(HitCell** head, short int x, short int y) {
-    HitCell* newCell = (HitCell*)malloc(sizeof(HitCell));
-    if (newCell == NULL) {
-        return;
-    }
-    newCell->x = x;
-    newCell->y = y;
-    newCell->next = *head;
-    *head = newCell;
-}
+typedef struct {
+    TargetHashEntry entries[TARGET_HASH_CAPACITY];
+    int grid_size;
+} TargetHashTable;
 
-void removeHitCell(HitCell** head, short int x, short int y) {
-    HitCell* current = *head;
-    HitCell* prev = NULL;
-
-    while (current != NULL) {
-        if (current->x == x && current->y == y) {
-            if (prev == NULL) {
-                *head = current->next;
-            }
-            else {
-                prev->next = current->next;
-            }
-            free(current);
-            return;
-        }
-        prev = current;
-        current = current->next;
-    }
-}
-
-void clearHitList(HitCell** head) {
-    HitCell* current = *head;
-    while (current != NULL) {
-        HitCell* next = current->next;
-        free(current);
-        current = next;
-    }
-    *head = NULL;
-}
-
+/* ---------- ПРОЧИЕ СТРУКТУРЫ ---------- */
 
 typedef struct {
     char chanceToHit;
 } Computer;
-
 
 typedef enum {
     BUTTON_NEW_GAME,
@@ -113,39 +78,41 @@ typedef struct {
     bool is_active;
     ButtonType type;
 } Button;
+
 Button main_menu_buttons[] = {
-     {"РќРѕРІР°СЏ РёРіСЂР°", 0, 0, 0, 0, 0, 0, false, true, BUTTON_NEW_GAME},
-     {"Р—Р°РіСЂСѓР·РёС‚СЊ РёРіСЂСѓ", 0, 0, 0, 0, 0, 0, false, true, BUTTON_LOAD_GAME},
-     {"РўР°Р±Р»РёС†Р° Р»РёРґРµСЂРѕРІ", 0, 0, 0, 0, 0, 0, false, true, BUTTON_LEADERBOARD},
-     {"Р’С‹С…РѕРґ", 0, 0, 0, 0, 0, 0, false, true, BUTTON_EXIT}
+     {"Новая игра", 0, 0, 0, 0, 0, 0, false, true, BUTTON_NEW_GAME},
+     {"Загрузить игру", 0, 0, 0, 0, 0, 0, false, true, BUTTON_LOAD_GAME},
+     {"Таблица лидеров", 0, 0, 0, 0, 0, 0, false, true, BUTTON_LEADERBOARD},
+     {"Выход", 0, 0, 0, 0, 0, 0, false, true, BUTTON_EXIT}
 };
 
 Button settings_menu_buttons[] = {
     {"10 x 10", 0, 0, 0, 0, 0, 0, true,  true, BUTTON_SIZE_10X10},
     {"15 x 15", 0, 0, 0, 0, 0, 0, false, true, BUTTON_SIZE_15X15},
-    {"Р›РµРіРєРѕ", 0, 0, 0, 0, 0, 0, false, true, BUTTON_EASY_DIFF},
-    {"РќРѕСЂРјР°Р»СЊРЅРѕ", 0, 0, 0, 0, 0, 0, false, true, BUTTON_NORMAL_DIFF},
-    {"РЎР»РѕР¶РЅРѕ", 0, 0, 0, 0, 0, 0, false, true, BUTTON_HARD_DIFF},
-    {"РџРѕР»СЊР·РѕРІР°С‚РµР»СЊ РїСЂРѕС‚РёРІ РєРѕРјРїСЊСЋС‚РµСЂР°", 0,0,0,0,0,0,true,true,BUTTON_USER_COMP},
-    {"РљРѕРјРїСЊСЋС‚РµСЂ РїСЂРѕС‚РёРІ РєРѕРјРїСЊСЋС‚РµСЂР°", 0,0,0,0,0,0,false,true,BUTTON_COMP_COMP},
-    {"РќР°С‡Р°С‚СЊ", 0, 0, 0, 0, 0, 0, false, true, BUTTON_START},
-    {"Р’ РјРµРЅСЋ", 0, 0, 0, 0, 0, 0, false, true, BUTTON_EXIT_MENU}
+    {"Легко", 0, 0, 0, 0, 0, 0, false, true, BUTTON_EASY_DIFF},
+    {"Нормально", 0, 0, 0, 0, 0, 0, false, true, BUTTON_NORMAL_DIFF},
+    {"Сложно", 0, 0, 0, 0, 0, 0, false, true, BUTTON_HARD_DIFF},
+    {"Пользователь против компьютера", 0,0,0,0,0,0,true,true,BUTTON_USER_COMP},
+    {"Компьютер против компьютера", 0,0,0,0,0,0,false,true,BUTTON_COMP_COMP},
+    {"Начать", 0, 0, 0, 0, 0, 0, false, true, BUTTON_START},
+    {"В меню", 0, 0, 0, 0, 0, 0, false, true, BUTTON_EXIT_MENU}
 };
 
 Button game_buttons[] = {
-    {"Р Р°РґР°СЂ", 0, 0, 0, 0, 0, 0, false, false, BUTTON_RADAR},
-    {"Р Р°СЃСЃС‚Р°РІРёС‚СЊ СЃР»СѓС‡Р°Р№РЅРѕ", 0, 0, 0, 0, 0, 0, false, true,  BUTTON_PLACE_RANDOM},
-    {"РЎРѕС…СЂР°РЅРёС‚СЊ РёРіСЂСѓ", 0, 0, 0, 0, 0, 0, false, false, BUTTON_SAVE_GAME},
-     {"Р’ РјРµРЅСЋ", 0, 0, 0, 0, 0, 0, false, true, BUTTON_EXIT_MENU}
+    {"Радар", 0, 0, 0, 0, 0, 0, false, false, BUTTON_RADAR},
+    {"Расставить случайно", 0, 0, 0, 0, 0, 0, false, true,  BUTTON_PLACE_RANDOM},
+    {"Сохранить игру", 0, 0, 0, 0, 0, 0, false, false, BUTTON_SAVE_GAME},
+    {"В меню", 0, 0, 0, 0, 0, 0, false, true, BUTTON_EXIT_MENU}
 };
 
 Button leaderboard_buttons[] = {
-    {"Р’ РјРµРЅСЋ", 0, 0, 0, 0, 0, 0, false, true, BUTTON_EXIT_MENU}
+    {"В меню", 0, 0, 0, 0, 0, 0, false, true, BUTTON_EXIT_MENU}
 };
 
 Button victory_buttons[] = {
-    {"Р’ РјРµРЅСЋ", 0, 0, 0, 0, 0, 0, false, true, BUTTON_EXIT_MENU}
+    {"В меню", 0, 0, 0, 0, 0, 0, false, true, BUTTON_EXIT_MENU}
 };
+
 typedef struct {
     short int startX;
     short int startY;
@@ -160,9 +127,9 @@ typedef struct {
 } Player;
 
 const char* letters[15] = {
-    "Рђ", "Р‘", "Р’", "Р“", "Р”",
-    "Р•", "Р–", "Р—", "Р", "Рљ",
-    "Р›", "Рњ", "Рќ", "Рћ", "Рџ"
+    "А", "Б", "В", "Г", "Д",
+    "Е", "Ж", "З", "И", "К",
+    "Л", "М", "Н", "О", "П"
 };
 
 typedef enum {
@@ -205,10 +172,10 @@ typedef enum {
 } MenuState;
 
 typedef struct {
-    char            date[64];
-    char             radars_count;
-    char             grid_size;
-    Difficult       difficult;
+    char      date[64];
+    char      radars_count;
+    char      grid_size;
+    Difficult difficult;
 
     CellState** player_grid;
     CellState** enemy_grid;
@@ -268,7 +235,13 @@ typedef struct {
     int menu_button_width;
     int menu_button_height;
 
+    /* Хеш-таблицы целей ИИ: отдельные для доски игрока и доски противника */
+    TargetHashTable ai_targets_on_player;
+    TargetHashTable ai_targets_on_enemy;
+
 } GameState;
+
+/* ---------- ПРОТОТИПЫ ---------- */
 
 char isSpaceAvailable(GameState* game, CellState** grid, char grid_size, short int x, short int y, char length, char orientation);
 char initSDL(GameState* game);
@@ -314,7 +287,7 @@ void initLeaderBoard(GameState* game);
 void saveLeaderBoard(GameState* game);
 
 void shuffle_for_xy(GameState* game, short int arr[][2], int size);
-char computerTurn(GameState* game, CellState** grid, char grid_size, char user, HitCell** hitListHead, CellState** grid_for_comp);
+char computerTurn(GameState* game, CellState** grid, char grid_size, char user, CellState** grid_for_comp);
 void activateFog(GameState* game);
 void checkFog(GameState* game);
 void generateFogTurns(GameState* game);
@@ -326,6 +299,20 @@ void checkStorm(GameState* game, float delta_time);
 void drawStormEffect(GameState* game);
 char shipsRemaining(GameState* game, CellState** grid, char grid_size);
 char placeShipsRandomly(GameState* game, CellState** grid, char grid_size, Ship* ships);
+
+/* хеш-табличка */
+void targetHashInit(TargetHashTable* ht, int grid_size);
+void targetHashClear(TargetHashTable* ht);
+char targetHashPop(TargetHashTable* ht, int* out_x, int* out_y);
+void targetHashAdd(TargetHashTable* ht, int x, int y);
+void initTargetTables(GameState* game);
+void addHitNeighbors(GameState* game, CellState** grid, char grid_size, int x, int y);
+
+char* win1251_to_utf8(const char* str);
+
+int availableCells(GameState* game, CellState** grid, char grid_size);
+
+
 
 char* win1251_to_utf8(const char* str) {
     int size = MultiByteToWideChar(1251, 0, str, -1, NULL, 0);
@@ -352,6 +339,105 @@ int availableCells(GameState* game, CellState** grid, char grid_size) {
     return count;
 }
 
+/* ---------- ХЕШ ФУНКЦИИ ДЛЯ ИИ ---------- */
+
+static int encode_coord(int x, int y) {
+    /* 0..31 по X, 0..15 по Y, с запасом */
+    return (y * 32) + x;
+}
+
+static void decode_coord(int key, int* x, int* y) {
+    *y = key / 32;
+    *x = key % 32;
+}
+
+static unsigned hash_index(int key) {
+    return ((unsigned)key) & (TARGET_HASH_CAPACITY - 1); /* capacity = 512 */
+}
+
+void targetHashInit(TargetHashTable* ht, int grid_size) {
+    ht->grid_size = grid_size;
+    for (int i = 0; i < TARGET_HASH_CAPACITY; ++i) {
+        ht->entries[i].state = 0;
+        ht->entries[i].key = 0;
+    }
+}
+
+void targetHashClear(TargetHashTable* ht) {
+    for (int i = 0; i < TARGET_HASH_CAPACITY; ++i) {
+        ht->entries[i].state = 0;
+    }
+}
+
+void targetHashAdd(TargetHashTable* ht, int x, int y) {
+    if (x < 0 || y < 0 || x >= ht->grid_size || y >= ht->grid_size) return;
+    int key = encode_coord(x, y);
+    unsigned idx = hash_index(key);
+
+    for (int i = 0; i < TARGET_HASH_CAPACITY; ++i) {
+        TargetHashEntry* e = &ht->entries[idx];
+        if (e->state == 0) {
+            /* пустая ячейка */
+            e->state = 1;
+            e->key = key;
+            return;
+        }
+        if (e->state == 1 && e->key == key) {
+            /* уже есть */
+            return;
+        }
+        idx = (idx + 1) & (TARGET_HASH_CAPACITY - 1);
+    }
+    /* переполнение — просто игнорируем */
+}
+
+char targetHashPop(TargetHashTable* ht, int* out_x, int* out_y) {
+    for (int i = 0; i < TARGET_HASH_CAPACITY; ++i) {
+        if (ht->entries[i].state == 1) {
+            ht->entries[i].state = 2;
+
+            decode_coord(ht->entries[i].key, out_x, out_y);
+
+            if (*out_x >= 0 && *out_y >= 0 &&
+                *out_x < ht->grid_size && *out_y < ht->grid_size)
+            {
+                return 1;
+            }
+        }
+    }
+    return 0;
+}
+
+
+void initTargetTables(GameState* game) {
+    targetHashInit(&game->ai_targets_on_player, game->grid_size);
+    targetHashInit(&game->ai_targets_on_enemy, game->grid_size);
+}
+
+void addHitNeighbors(GameState* game, CellState** grid, char grid_size, int x, int y) {
+    TargetHashTable* ht =
+        (grid == game->player_grid) ? &game->ai_targets_on_player : &game->ai_targets_on_enemy;
+
+    const int dirs[4][2] = {
+        {1, 0},
+        {-1, 0},
+        {0, 1},
+        {0, -1}
+    };
+
+    for (int i = 0; i < 4; ++i) {
+        int nx = x + dirs[i][0];
+        int ny = y + dirs[i][1];
+        if (nx >= 0 && ny >= 0 && nx < grid_size && ny < grid_size) {
+            if (grid[ny][nx] != HIT && grid[ny][nx] != MISS) {
+                targetHashAdd(ht, nx, ny);
+            }
+        }
+    }
+}
+
+/* ---------- main ---------- */
+
 int main() {
     setlocale(LC_ALL, "Rus");
     GameState game = { 0 };
@@ -377,11 +463,11 @@ int main() {
 
     generateFogTurns(&game);
     generateStormTurns(&game);
-    srand(time(NULL));
+    srand((unsigned)time(NULL));
     loadSaves(&game);
     initLeaderBoard(&game);
     initMenu(&game);
-    HitCell* computerHitListHead = NULL;
+
     Uint64 last_time = 0;
     char quit = 0;
     char ch = 0;
@@ -402,13 +488,11 @@ int main() {
                 quit = 1;
             }
             else if (event.type == SDL_EVENT_WINDOW_RESIZED) {
-                // РћР±РЅРѕРІР»СЏРµРј СЂР°Р·РјРµСЂС‹ СЌРєСЂР°РЅР°
                 game.screen_width = event.window.data1;
                 game.screen_height = event.window.data2;
-                // РџРµСЂРµСЃС‡РёС‚С‹РІР°РµРј СЂР°Р·РјРµСЂС‹ Рё РїРѕР·РёС†РёРё
-                initSDL(&game); // РџРѕРІС‚РѕСЂРЅРѕ РёРЅРёС†РёР°Р»РёР·РёСЂСѓРµРј СЂР°Р·РјРµСЂС‹
-                initMenu(&game); // РћР±РЅРѕРІР»СЏРµРј РїРѕР·РёС†РёРё РєРЅРѕРїРѕРє РјРµРЅСЋ
-                initGame(&game); // РћР±РЅРѕРІР»СЏРµРј РїРѕР·РёС†РёРё РєРЅРѕРїРѕРє РёРіСЂС‹
+                initSDL(&game);
+                initMenu(&game);
+                initGame(&game);
             }
             else if (event.type == SDL_EVENT_MOUSE_BUTTON_DOWN) {
                 short int mouseX = event.button.x;
@@ -459,12 +543,11 @@ int main() {
                         game.computer.chanceToHit = 3;
                         break;
                     }
+
                     if (game.current_user.comp != 1) {
 
                         if (end_random) {
-
                             checkButtonsClick(&game, mouseX, mouseY, game_buttons, 4);
-
                         }
 
                         if (mouseX >= game.player_x_offset && mouseX < game.player_x_offset + game.grid_size * game.cell_size &&
@@ -477,12 +560,18 @@ int main() {
                     else {
                         game.player_ships_count = placeShipsRandomly(&game, game.player_grid, game.grid_size, game.player_ships);
                     }
-                    if ((!end_random && game.player_ships_count >= 20 && game.grid_size == 10) || (end_random && game.player_ships_count >= 10 && game.grid_size == 10) || (game.player_ships_count >= 13 && !end_random && game.grid_size == 15) || (game.player_ships_count >= 10 && end_random && game.grid_size == 15)) {
+
+                    if ((!end_random && game.player_ships_count >= 20 && game.grid_size == 10) ||
+                        (end_random && game.player_ships_count >= 10 && game.grid_size == 10) ||
+                        (game.player_ships_count >= 13 && !end_random && game.grid_size == 15) ||
+                        (game.player_ships_count >= 10 && end_random && game.grid_size == 15)) {
+
                         game.enemy_ships_count = placeShipsRandomly(&game, game.enemy_grid, game.grid_size, game.enemy_ships);
                         if (game.current_user.comp == 1) {
                             startGame(&game);
                         }
-                        if ((game.enemy_ships_count >= 10 && game.current_user.comp != 1 && game.grid_size == 10) || (game.enemy_ships_count >= 11 && game.current_user.comp != 1 && game.grid_size == 15)) {
+                        if ((game.enemy_ships_count >= 10 && game.current_user.comp != 1 && game.grid_size == 10) ||
+                            (game.enemy_ships_count >= 11 && game.current_user.comp != 1 && game.grid_size == 15)) {
                             game.current_mode = PLACING_MINES;
                         }
                     }
@@ -498,7 +587,8 @@ int main() {
                 }
                 else if (game.current_mode == PLAYING && game.player_turn && game.current_user.comp != 1) {
                     checkButtonsClick(&game, mouseX, mouseY, game_buttons, 4);
-                    if (game.player_turn == 1 && !handleInput(&game, event, game.enemy_x_offset, game.enemy_y_offset, game.enemy_grid, game.grid_size)) {
+                    if (game.player_turn == 1 &&
+                        !handleInput(&game, event, game.enemy_x_offset, game.enemy_y_offset, game.enemy_grid, game.grid_size)) {
                         game.player_turn = 0;
                         continue;
                     }
@@ -508,17 +598,18 @@ int main() {
                 }
             }
         }
+
         char res;
         if (game.current_user.comp == 1) {
             if (game.current_mode == PLAYING && game.player_turn) {
-                res = computerTurn(&game, game.enemy_grid, game.grid_size, 1, &computerHitListHead, game.player_grid);
+                res = computerTurn(&game, game.enemy_grid, game.grid_size, 1, game.player_grid);
                 if (res != 1) {
                     game.player_turn = 0;
                 }
             }
             SDL_Delay(160);
             if (game.current_mode == PLAYING && !game.player_turn) {
-                res = computerTurn(&game, game.player_grid, game.grid_size, 0, &computerHitListHead, game.enemy_grid);
+                res = computerTurn(&game, game.player_grid, game.grid_size, 0, game.enemy_grid);
                 if (res != 1) {
                     game.player_turn = 1;
                 }
@@ -526,12 +617,13 @@ int main() {
         }
         else {
             if (game.current_mode == PLAYING && !game.player_turn) {
-                res = computerTurn(&game, game.player_grid, game.grid_size, 1, &computerHitListHead, game.player_grid);
+                res = computerTurn(&game, game.player_grid, game.grid_size, 1, game.player_grid);
                 if (res != 1) {
                     game.player_turn = 1;
                 }
             }
         }
+
         if (game.current_mode == PLAYING) {
             if (!shipsRemaining(&game, game.enemy_grid, game.grid_size)) {
                 game_over = true;
@@ -547,6 +639,7 @@ int main() {
                 game.current_mode = MENU;
             }
         }
+
         checkFog(&game);
         SDL_SetRenderDrawColor(game.renderer, 255, 255, 255, 255);
         SDL_RenderClear(game.renderer);
@@ -564,6 +657,7 @@ int main() {
         SDL_RenderPresent(game.renderer);
         SDL_Delay(160);
     }
+
     if (game_over) {
         if (win) {
             game.menu_state = VICTORY_MENU;
@@ -577,27 +671,26 @@ int main() {
 
 char initSDL(GameState* game) {
     if (SDL_Init(SDL_INIT_VIDEO) < 0) {
-        SDL_Log("РћС€РёР±РєР° РїСЂРё РёРЅРёС†РёР°Р»РёР·Р°С†РёРё SDL: %s\n", SDL_GetError());
+        SDL_Log("Ошибка при инициализации SDL: %s\n", SDL_GetError());
         return 1;
     }
 
     SDL_DisplayID display = SDL_GetPrimaryDisplay();
     const SDL_DisplayMode* mode = SDL_GetCurrentDisplayMode(display);
     if (!mode) {
-        SDL_Log("РќРµ СѓРґР°Р»РѕСЃСЊ РїРѕР»СѓС‡РёС‚СЊ С‚РµРєСѓС‰РёР№ СЂРµР¶РёРј РґРёСЃРїР»РµСЏ: %s\n", SDL_GetError());
+        SDL_Log("Не удалось получить текущий режим дисплея: %s\n", SDL_GetError());
         return 1;
     }
 
     game->screen_width = mode->w - 100;
     game->screen_height = mode->h - 100;
-    int grid_count = 2;
     int cell_padding = 2;
 
     float usable_width_ratio = 0.6f;
     float usable_height_ratio = 0.4f;
 
-    int usable_width = game->screen_width * usable_width_ratio;
-    int usable_height = game->screen_height * usable_height_ratio;
+    int usable_width = (int)(game->screen_width * usable_width_ratio);
+    int usable_height = (int)(game->screen_height * usable_height_ratio);
 
     int max_cell_width = usable_width / (game->grid_size * 2 + 1);
     int max_cell_height = usable_height / game->grid_size;
@@ -623,33 +716,30 @@ char initSDL(GameState* game) {
     }
     game->window = SDL_CreateWindow("Sea battle SDL3", game->screen_width, game->screen_height, 0);
     if (game->window == NULL) {
-        SDL_Log("РћС€РёР±РєР° РїСЂРё СЃРѕР·РґР°РЅРёРё РѕРєРЅР° SDL: %s\n", SDL_GetError());
+        SDL_Log("Ошибка при создании окна SDL: %s\n", SDL_GetError());
         return 1;
     }
     game->renderer = SDL_CreateRenderer(game->window, NULL);
     if (game->renderer == NULL) {
-        SDL_Log("РћС€РёР±РєР° РїСЂРё СЃРѕР·РґР°РЅРёРё СЂРµРЅРґРµСЂРµСЂР° SDL: %s\n", SDL_GetError());
+        SDL_Log("Ошибка при создании рендерера SDL: %s\n", SDL_GetError());
         return 1;
     }
     if (TTF_Init() < 0) {
-        SDL_Log("РћС€РёР±РєР° РїСЂРё РёРЅРёС†РёР°Р»РёР·Р°С†РёРё TTF: %s\n", SDL_GetError());
+        SDL_Log("Ошибка при инициализации TTF: %s\n", SDL_GetError());
         return 1;
     }
     game->text_engine = TTF_CreateRendererTextEngine(game->renderer);
     if (game->text_engine == NULL) {
-        SDL_Log("РћС€РёР±РєР° РїСЂРё СЃРѕР·РґР°РЅРёРё TTF_RendererTextEngine: %s\n", SDL_GetError());
+        SDL_Log("Ошибка при создании TTF_RendererTextEngine: %s\n", SDL_GetError());
         return 1;
     }
     game->font = TTF_OpenFont("font.ttf", FONT_SIZE);
     if (game->font == NULL) {
-        SDL_Log("РќРµ СѓРґР°Р»РѕСЃСЊ Р·Р°РіСЂСѓР·РёС‚СЊ С€СЂРёС„С‚: %s\n", SDL_GetError());
+        SDL_Log("Не удалось загрузить шрифт: %s\n", SDL_GetError());
         return 1;
     }
     SDL_SetRenderDrawColor(game->renderer, 255, 255, 255, 255);
     return 0;
-
-    int base_font_size = (int)(game->screen_height * 0.04f);
-    game->font = TTF_OpenFont("font.ttf", base_font_size);
 }
 
 void closeSDL(GameState* game) {
@@ -676,29 +766,29 @@ void saveGame(GameState* game, char saveIndex) {
     strftime(buffer, sizeof(buffer), "%c - %I:%M%p - %H:%M", info);
     FILE* save_file = fopen(saveFile, "w");
     if (!save_file) {
-        printf("РћС€РёР±РєР° СЃРѕС…СЂР°РЅРµРЅРёСЏ.\n");
+        printf("Ошибка сохранения.\n");
         return;
     }
 
     fprintf(save_file,
-        "# Р”РђРўРђ\n%s\n"
-        "# Р РђР—РњР•Р _РЎР•РўРљР\n%c\n"
-        "# РћРЎРўРђР›РћРЎР¬_Р РђР”РђР РћР’\n%c\n"
-        "# РЎР›РћР–РќРћРЎРўР¬\n%c\n",
+        "# ДАТА\n%s\n"
+        "# РАЗМЕР_СЕТКИ\n%c\n"
+        "# ОСТАЛОСЬ_РАДАРОВ\n%c\n"
+        "# СЛОЖНОСТЬ\n%c\n",
         buffer,
         game->grid_size,
         game->radars_left,
         game->current_difficult
     );
 
-    fprintf(save_file, "# РЎР•РўРљРђ_РР“Р РћРљРђ\n");
+    fprintf(save_file, "# СЕТКА_ИГРОКА\n");
     for (int y = 0; y < game->grid_size; ++y) {
         for (int x = 0; x < game->grid_size; ++x) {
             fprintf(save_file, "%d ", game->player_grid[y][x]);
         }
         fprintf(save_file, "\n");
     }
-    fprintf(save_file, "# РЎР•РўРљРђ_РџР РћРўРР’РќРРљРђ\n");
+    fprintf(save_file, "# СЕТКА_ПРОТИВНИКА\n");
     for (int y = 0; y < game->grid_size; ++y) {
         for (int x = 0; x < game->grid_size; ++x) {
             fprintf(save_file, "%d ", game->enemy_grid[y][x]);
@@ -707,8 +797,9 @@ void saveGame(GameState* game, char saveIndex) {
     }
 
     fclose(save_file);
-    printf("РРіСЂР° СѓСЃРїРµС€РЅРѕ СЃРѕС…СЂР°РЅРµРЅР°.\n");
+    printf("Игра успешно сохранена.\n");
 }
+
 void loadSaves(GameState* game) {
     char saveFile[64];
 
@@ -740,36 +831,35 @@ SaveData parseSaveFile(GameState* game, const char* save_file) {
 
     FILE* file = fopen(save_file, "r");
     if (!file) {
-        printf("РќРµ СѓРґР°Р»РѕСЃСЊ РѕС‚РєСЂС‹С‚СЊ С„Р°Р№Р» СЃРѕС…СЂР°РЅРµРЅРёСЏ.\n");
+        printf("Не удалось открыть файл сохранения.\n");
         return save;
     }
 
     char line[256];
-    int size = -1;
     char reading_player = 0;
     char reading_enemy = 0;
     short int row = 0;
 
     while (fgets(line, sizeof(line), file)) {
-        if (strstr(line, "# Р”РђРўРђ")) {
+        if (strstr(line, "# ДАТА")) {
             if (fgets(line, sizeof(line), file)) {
-                sscanf(line, "%s", &save.date);
+                sscanf(line, "%63[^\n]", save.date);
             }
             continue;
         }
-        if (strstr(line, "# Р РђР—РњР•Р _РЎР•РўРљР")) {
+        if (strstr(line, "# РАЗМЕР_СЕТКИ")) {
             if (fgets(line, sizeof(line), file)) {
                 sscanf(line, "%c", &save.grid_size);
             }
             continue;
         }
-        if (strstr(line, "# РћРЎРўРђР›РћРЎР¬_Р РђР”РђР РћР’")) {
+        if (strstr(line, "# ОСТАЛОСЬ_РАДАРОВ")) {
             if (fgets(line, sizeof(line), file)) {
                 sscanf(line, "%c", &save.radars_count);
             }
             continue;
         }
-        if (strstr(line, "# РЎР›РћР–РќРћРЎРўР¬")) {
+        if (strstr(line, "# СЛОЖНОСТЬ")) {
             if (fgets(line, sizeof(line), file)) {
                 sscanf(line, "%c", &save.difficult);
             }
@@ -784,14 +874,14 @@ SaveData parseSaveFile(GameState* game, const char* save_file) {
     rewind(file);
 
     while (fgets(line, sizeof(line), file)) {
-        if (strstr(line, "# РЎР•РўРљРђ_РР“Р РћРљРђ")) {
+        if (strstr(line, "# СЕТКА_ИГРОКА")) {
             reading_player = 1;
             reading_enemy = 0;
             row = 0;
             continue;
         }
 
-        if (strstr(line, "# РЎР•РўРљРђ_РџР РћРўРР’РќРРљРђ")) {
+        if (strstr(line, "# СЕТКА_ПРОТИВНИКА")) {
             reading_player = 0;
             reading_enemy = 1;
             row = 0;
@@ -801,8 +891,11 @@ SaveData parseSaveFile(GameState* game, const char* save_file) {
         if (reading_player && row < save.grid_size) {
             sscanf(line,
                 "%hd %hd %hd %hd %hd %hd %hd %hd %hd %hd",
-                &save.player_grid[row][0], &save.player_grid[row][1], &save.player_grid[row][2], &save.player_grid[row][3], &save.player_grid[row][4],
-                &save.player_grid[row][5], &save.player_grid[row][6], &save.player_grid[row][7], &save.player_grid[row][8], &save.player_grid[row][9]
+                &save.player_grid[row][0], &save.player_grid[row][1], &save.player_grid[row][2],
+                &save.player_grid[row][3], &save.player_grid[row][4],
+                &save.player_grid[row][5], &save.player_grid[row][6],
+                &save.player_grid[row][7], &save.player_grid[row][8],
+                &save.player_grid[row][9]
             );
             row++;
         }
@@ -810,8 +903,11 @@ SaveData parseSaveFile(GameState* game, const char* save_file) {
         if (reading_enemy && row < save.grid_size) {
             sscanf(line,
                 "%hd %hd %hd %hd %hd %hd %hd %hd %hd %hd",
-                &save.enemy_grid[row][0], &save.enemy_grid[row][1], &save.enemy_grid[row][2], &save.enemy_grid[row][3], &save.enemy_grid[row][4],
-                &save.enemy_grid[row][5], &save.enemy_grid[row][6], &save.enemy_grid[row][7], &save.enemy_grid[row][8], &save.enemy_grid[row][9]
+                &save.enemy_grid[row][0], &save.enemy_grid[row][1], &save.enemy_grid[row][2],
+                &save.enemy_grid[row][3], &save.enemy_grid[row][4],
+                &save.enemy_grid[row][5], &save.enemy_grid[row][6],
+                &save.enemy_grid[row][7], &save.enemy_grid[row][8],
+                &save.enemy_grid[row][9]
             );
             row++;
         }
@@ -822,18 +918,16 @@ SaveData parseSaveFile(GameState* game, const char* save_file) {
 }
 
 void initMenu(GameState* game) {
-    // РџСЂРѕС†РµРЅС‚РЅС‹Рµ РѕС‚СЃС‚СѓРїС‹ Рё СЂР°Р·РјРµСЂС‹
-    float button_width_ratio = MENU_BUTTON_WIDTH_RATIO; // 40% С€РёСЂРёРЅС‹ СЌРєСЂР°РЅР°
-    float button_height_ratio = MENU_BUTTON_HEIGHT_RATIO; // 5% РІС‹СЃРѕС‚С‹ СЌРєСЂР°РЅР°
-    float start_y_ratio = 0.2f; // РќР°С‡Р°Р»СЊРЅР°СЏ РїРѕР·РёС†РёСЏ РїРѕ Y (20% РѕС‚ РІРµСЂС…Р°)
-    float spacing_ratio = 0.07f; // РћС‚СЃС‚СѓРї РјРµР¶РґСѓ РєРЅРѕРїРєР°РјРё (7% РІС‹СЃРѕС‚С‹ СЌРєСЂР°РЅР°)
+    float button_width_ratio = MENU_BUTTON_WIDTH_RATIO;
+    float button_height_ratio = MENU_BUTTON_HEIGHT_RATIO;
+    float start_y_ratio = 0.2f;
+    float spacing_ratio = 0.07f;
 
     game->menu_button_width = (int)(game->screen_width * button_width_ratio);
     game->menu_button_height = (int)(game->screen_height * button_height_ratio);
 
-    // Р“Р»Р°РІРЅРѕРµ РјРµРЅСЋ
     for (int i = 0; i < MAIN_BUTTONS_COUNT; ++i) {
-        main_menu_buttons[i].x_pos = game->screen_width / 2; // Р¦РµРЅС‚СЂ РїРѕ X
+        main_menu_buttons[i].x_pos = game->screen_width / 2;
         main_menu_buttons[i].y_pos = (int)(game->screen_height * (start_y_ratio + i * spacing_ratio));
 
         main_menu_buttons[i].left = main_menu_buttons[i].x_pos - game->menu_button_width / 2;
@@ -842,7 +936,6 @@ void initMenu(GameState* game) {
         main_menu_buttons[i].bottom = main_menu_buttons[i].y_pos + game->menu_button_height / 2;
     }
 
-    // РњРµРЅСЋ РЅР°СЃС‚СЂРѕРµРє
     for (int i = 0; i < SETTINGS_BUTTONS_COUNT; ++i) {
         settings_menu_buttons[i].x_pos = game->screen_width / 2;
         settings_menu_buttons[i].y_pos = (int)(game->screen_height * (start_y_ratio + i * spacing_ratio));
@@ -854,7 +947,6 @@ void initMenu(GameState* game) {
     }
     settings_menu_buttons[2].is_pressed = true;
 
-    // РњРµРЅСЋ СЃРѕС…СЂР°РЅРµРЅРёР№
     for (int i = 0; i < MAX_SAVES; ++i) {
         game->saves_buttons[i].x_pos = game->screen_width / 2;
         game->saves_buttons[i].y_pos = (int)(game->screen_height * (start_y_ratio + i * spacing_ratio));
@@ -865,12 +957,12 @@ void initMenu(GameState* game) {
         game->saves_buttons[i].type = BUTTON_SAVE_SLOT;
         game->saves_buttons[i].is_pressed = false;
         game->saves_buttons[i].is_active = true;
-        game->saves_buttons[i].label = (game->saves[i].date && game->saves[i].date[0] != '\0') ? game->saves[i].date : "РџСѓСЃС‚Рѕ";
+        game->saves_buttons[i].label =
+            (game->saves[i].date && game->saves[i].date[0] != '\0') ? game->saves[i].date : "Пусто";
     }
 
-    // РљРЅРѕРїРєР° "Р’ РјРµРЅСЋ" РґР»СЏ С‚Р°Р±Р»РёС†С‹ Р»РёРґРµСЂРѕРІ
     leaderboard_buttons[0].x_pos = game->screen_width / 2;
-    leaderboard_buttons[0].y_pos = (int)(game->screen_height * 0.9f); // 90% РѕС‚ РІРµСЂС…Р°
+    leaderboard_buttons[0].y_pos = (int)(game->screen_height * 0.9f);
     leaderboard_buttons[0].left = leaderboard_buttons[0].x_pos - game->menu_button_width / 2;
     leaderboard_buttons[0].right = leaderboard_buttons[0].x_pos + game->menu_button_width / 2;
     leaderboard_buttons[0].top = leaderboard_buttons[0].y_pos - game->menu_button_height / 2;
@@ -878,9 +970,8 @@ void initMenu(GameState* game) {
     leaderboard_buttons[0].is_pressed = false;
     leaderboard_buttons[0].is_active = true;
 
-    // РљРЅРѕРїРєР° "Р’ РјРµРЅСЋ" РґР»СЏ СЌРєСЂР°РЅР° РїРѕР±РµРґС‹
     victory_buttons[0].x_pos = game->screen_width / 2;
-    victory_buttons[0].y_pos = (int)(game->screen_height * 0.7f); // 70% РѕС‚ РІРµСЂС…Р°
+    victory_buttons[0].y_pos = (int)(game->screen_height * 0.7f);
     victory_buttons[0].left = victory_buttons[0].x_pos - game->menu_button_width / 2;
     victory_buttons[0].right = victory_buttons[0].x_pos + game->menu_button_width / 2;
     victory_buttons[0].top = victory_buttons[0].y_pos - game->menu_button_height / 2;
@@ -890,6 +981,7 @@ void initMenu(GameState* game) {
 }
 
 void initBoard(GameState* game, CellState*** grid, int size) {
+    (void)game;
     for (int i = 0; i < size; ++i) {
         for (int j = 0; j < size; ++j) {
             (*grid)[i][j] = WATER;
@@ -898,13 +990,13 @@ void initBoard(GameState* game, CellState*** grid, int size) {
 }
 
 char isSpaceAvailable(GameState* game, CellState** grid, char grid_size, short int x, short int y, char length, char orientation) {
+    (void)game;
     if (orientation == 0) {
         if (x + length > grid_size) return 0;
         for (int i = 0; i < length; i++) {
             if (grid[y][x + i] != WATER) return 0;
         }
-        for (int i = 0; i < length; i++)
-        {
+        for (int i = 0; i < length; i++) {
             if (y > 0 && grid[y - 1][x + i] != WATER)
                 return 0;
             if (y < grid_size - 1 && grid[y + 1][x + i] != WATER)
@@ -929,8 +1021,7 @@ char isSpaceAvailable(GameState* game, CellState** grid, char grid_size, short i
             if (grid[y + i][x] != WATER) return 0;
         }
 
-        for (int i = 0; i < length; i++)
-        {
+        for (int i = 0; i < length; i++) {
             if (x > 0 && grid[y + i][x - 1] != WATER)
                 return 0;
             if (x < grid_size - 1 && grid[y + i][x + 1] != WATER)
@@ -953,6 +1044,7 @@ char isSpaceAvailable(GameState* game, CellState** grid, char grid_size, short i
 }
 
 void placeShip(GameState* game, CellState** grid, short int startX, short int startY, char length, char orientation) {
+    (void)game;
     if (orientation == 0) {
         for (int i = 0; i < length; i++) {
             grid[startY][startX + i] = SHIP;
@@ -990,7 +1082,6 @@ char tryShipOnEdge(GameState* game, CellState** grid, char grid_size, char lengt
             case 1:
                 *x = rand() % grid_size;
                 *y = grid_size - 1;
-
                 break;
             case 2:
                 *x = grid_size - 1;
@@ -1015,6 +1106,8 @@ char tryShipOnEdge(GameState* game, CellState** grid, char grid_size, char lengt
 }
 
 void getRandomCoordinatesInRegion(GameState* game, char grid_size, short int region_x_start, short int region_y_start, short int region_x_end, short int region_y_end, short int* x, short int* y) {
+    (void)game;
+    (void)grid_size;
     *x = region_x_start + (rand() % (region_x_end - region_x_start));
     *y = region_y_start + (rand() % (region_y_end - region_y_start));
 }
@@ -1022,16 +1115,17 @@ void getRandomCoordinatesInRegion(GameState* game, char grid_size, short int reg
 char placeShipsRandomly(GameState* game, CellState** grid, char grid_size, Ship* ships) {
     char placed_ships = 0;
     char ships_count = 0;
-    char ships_left[] = { game->ships_left_1 - 3, game->ships_left_1 - 3,game->ships_left_1 - 2, game->ships_left_1 - 1 };
-    char i = 0;
     char lengths[] = { 5, 4, 3, 2 };
     char num_ship_types = sizeof(lengths) / sizeof(lengths[0]);
+    char i = 0;
+
     if (grid_size == 15) {
         i = 0;
     }
     else {
         i = 1;
     }
+
     for (; i < num_ship_types; i++) {
         char count_all = 0;
         switch (i) {
@@ -1059,14 +1153,14 @@ char placeShipsRandomly(GameState* game, CellState** grid, char grid_size, Ship*
                 ships[ships_count].startY = y;
                 ships[ships_count].length = lengths[i];
                 ships[ships_count].orientation = orientation;
+                ships[ships_count].hits = 0;
                 ships_count++;
                 placed_ships++;
                 count_all--;
-
             }
-
         }
     }
+
     placed_ships = 0;
     while (placed_ships < game->ships_left_1) {
         short int x, y;
@@ -1075,8 +1169,7 @@ char placeShipsRandomly(GameState* game, CellState** grid, char grid_size, Ship*
             x = 1 + (rand() % (grid_size - 2));
             y = 1 + (rand() % (grid_size - 2));
         }
-
-        if (game->computer.chanceToHit == 1) {
+        else {
             x = rand() % grid_size;
             y = rand() % grid_size;
         }
@@ -1086,6 +1179,7 @@ char placeShipsRandomly(GameState* game, CellState** grid, char grid_size, Ship*
             ships[ships_count].startY = y;
             ships[ships_count].length = 1;
             ships[ships_count].orientation = 0;
+            ships[ships_count].hits = 0;
             ships_count++;
             placed_ships++;
         }
@@ -1094,6 +1188,7 @@ char placeShipsRandomly(GameState* game, CellState** grid, char grid_size, Ship*
 }
 
 void shuffle_for_xy(GameState* game, short int arr[][2], int size) {
+    (void)game;
     if (size <= 1) return;
     for (int i = size - 1; i > 0; i--) {
         int j = rand() % (i + 1);
@@ -1106,11 +1201,18 @@ void shuffle_for_xy(GameState* game, short int arr[][2], int size) {
     }
 }
 
-char computerTurn(GameState* game, CellState** grid, char grid_size, char user, HitCell** hitListHead, CellState** grid_for_comp) {
+/* ---------- ХОД КОМПЬЮТЕРА (с “хеш-таблицами”) ---------- */
+
+char computerTurn(GameState* game, CellState** grid, char grid_size, char user, CellState** grid_for_comp) {
     CellState** temp = grid;
+    TargetHashTable* ht =
+        (grid == game->player_grid) ? &game->ai_targets_on_player : &game->ai_targets_on_enemy;
+
+    /* радар компа */
     if (game->computer_radars_left > 0 && (rand() % 100) < 10) {
         if (game->current_user.comp == 1) {
             grid = grid_for_comp;
+            ht = (grid == game->player_grid) ? &game->ai_targets_on_player : &game->ai_targets_on_enemy;
         }
         short int radar_x = rand() % grid_size;
         short int radar_y = rand() % grid_size;
@@ -1165,17 +1267,19 @@ char computerTurn(GameState* game, CellState** grid, char grid_size, char user, 
         grid = temp;
         return 1;
     }
+
     game->total_turns++;
     if (game->fog_active) {
         game->fog_turns_in_progress++;
-
         if (game->fog_turns_in_progress == 2) {
             game->fog_active = 0;
             game->fog_turns_in_progress = 0;
         }
     }
+
     short int available = 0;
-    static int i = 0;
+    static int i_static = 0;
+
     for (int y = 0; y < grid_size; y++) {
         for (int x = 0; x < grid_size; x++) {
             if (grid[y][x] != HIT && grid[y][x] != MISS) {
@@ -1186,34 +1290,21 @@ char computerTurn(GameState* game, CellState** grid, char grid_size, char user, 
     if (available == 0) {
         return 0;
     }
-    short int x, y;
-    char hit_found = 0;
-    if (*hitListHead != NULL && game->computer.chanceToHit != 1) {
-        HitCell* currentHit = *hitListHead;
-        x = currentHit->x;
-        y = currentHit->y;
-        short int offsets[4][2] = {
-            {1, 0},
-            {-1, 0},
-            {0, 1},
-             {0, -1}
-        };
 
-        for (int i = 0; i < 4; i++) {
-            short int next_x = x + offsets[i][0];
-            short int next_y = y + offsets[i][1];
+    short int x = -1, y = -1;
 
-            if (next_x >= 0 && next_x < grid_size && next_y >= 0 && next_y < grid_size) {
-                if (grid[next_y][next_x] != HIT && grid[next_y][next_x] != MISS) {
-                    x = next_x;
-                    y = next_y;
-                    goto try_shot;
-                }
+    /* 1) пробуем взять цель из “хеш-таблицы” вокруг последних попаданий */
+    if (game->computer.chanceToHit != 1) {
+        if (targetHashPop(ht, &x, &y)) {
+            if (x >= 0 && y >= 0 &&
+                x < grid_size && y < grid_size &&
+                grid[y][x] != HIT && grid[y][x] != MISS) {
+                goto try_shot;
             }
         }
-        clearHitList(hitListHead);
     }
 
+    /* 2) если прицельных целей нет — используем старый шаблонный перебор */
     short int attempts = 0;
     const short int max_attempts = 1000;
 
@@ -1278,7 +1369,6 @@ char computerTurn(GameState* game, CellState** grid, char grid_size, char user, 
             {6,7},
             {7,6},
             {8,5},
-
         };
 
         short int for_xy_15_grid_4[10][2] = {
@@ -1394,7 +1484,6 @@ char computerTurn(GameState* game, CellState** grid, char grid_size, char user, 
             {14,3},
             {8,14},
             {14,8}
-
         };
         short int for_xy_15_2[32][2] = {
             {1,6},
@@ -1403,7 +1492,7 @@ char computerTurn(GameState* game, CellState** grid, char grid_size, char user, 
             {4,3},
             {5,2},
             {6,1},
-             {1,11},
+            {1,11},
             {2,10},
             {3,9},
             {4,8},
@@ -1424,12 +1513,13 @@ char computerTurn(GameState* game, CellState** grid, char grid_size, char user, 
             {11,6},
             {12,5},
             {13,4},
-             {9,13},
+            {9,13},
             {10,12},
             {11,11},
             {12,10},
             {13,9}
         };
+
         if (game->current_user.comp != 1 || user == 1) {
             if (grid_size == 15) {
                 shuffle_for_xy(game, for_xy_15_grid_2, 9);
@@ -1466,21 +1556,21 @@ char computerTurn(GameState* game, CellState** grid, char grid_size, char user, 
         if (game->computer.chanceToHit == 3) {
 
             if (grid_size == 10) {
-                if (i < 8) {
-                    x = for_xy_10_grid_4[i][0];
-                    y = for_xy_10_grid_4[i][1];
+                if (i_static < 8) {
+                    x = for_xy_10_grid_4[i_static][0];
+                    y = for_xy_10_grid_4[i_static][1];
                 }
-                else if (i < 24) {
-                    x = for_xy_10_4[i - 8][0];
-                    y = for_xy_10_4[i - 8][1];
+                else if (i_static < 24) {
+                    x = for_xy_10_4[i_static - 8][0];
+                    y = for_xy_10_4[i_static - 8][1];
                 }
-                else if (i < 34) {
-                    x = for_xy_10_grid_2_3[i - 24][0];
-                    y = for_xy_10_grid_2_3[i - 24][1];
+                else if (i_static < 34) {
+                    x = for_xy_10_grid_2_3[i_static - 24][0];
+                    y = for_xy_10_grid_2_3[i_static - 24][1];
                 }
-                else if (i < 50) {
-                    x = for_xy_10_2_3[i - 34][0];
-                    y = for_xy_10_2_3[i - 34][1];
+                else if (i_static < 50) {
+                    x = for_xy_10_2_3[i_static - 34][0];
+                    y = for_xy_10_2_3[i_static - 34][1];
                 }
                 else {
                     x = rand() % grid_size;
@@ -1488,29 +1578,29 @@ char computerTurn(GameState* game, CellState** grid, char grid_size, char user, 
                 }
             }
             else {
-                if (i < 10) {
-                    x = for_xy_15_grid_4[i][0];
-                    y = for_xy_15_grid_4[i][1];
+                if (i_static < 10) {
+                    x = for_xy_15_grid_4[i_static][0];
+                    y = for_xy_15_grid_4[i_static][1];
                 }
-                else if (i < 45) {
-                    x = for_xy_15_4[i - 10][0];
-                    y = for_xy_15_4[i - 10][1];
+                else if (i_static < 45) {
+                    x = for_xy_15_4[i_static - 10][0];
+                    y = for_xy_15_4[i_static - 10][1];
                 }
-                else if (i < 59) {
-                    x = for_xy_15_grid_3[i - 45][0];
-                    y = for_xy_15_grid_3[i - 45][1];
+                else if (i_static < 59) {
+                    x = for_xy_15_grid_3[i_static - 45][0];
+                    y = for_xy_15_grid_3[i_static - 45][1];
                 }
-                else if (i < 94) {
-                    x = for_xy_15_3[i - 59][0];
-                    y = for_xy_15_3[i - 59][1];
+                else if (i_static < 94) {
+                    x = for_xy_15_3[i_static - 59][0];
+                    y = for_xy_15_3[i_static - 59][1];
                 }
-                else if (i < 103) {
-                    x = for_xy_15_grid_2[i - 94][0];
-                    y = for_xy_15_grid_2[i - 94][1];
+                else if (i_static < 103) {
+                    x = for_xy_15_grid_2[i_static - 94][0];
+                    y = for_xy_15_grid_2[i_static - 94][1];
                 }
-                else if (i < 135) {
-                    x = for_xy_15_2[i - 103][0];
-                    y = for_xy_15_2[i - 103][1];
+                else if (i_static < 135) {
+                    x = for_xy_15_2[i_static - 103][0];
+                    y = for_xy_15_2[i_static - 103][1];
                 }
                 else {
                     x = rand() % grid_size;
@@ -1518,7 +1608,7 @@ char computerTurn(GameState* game, CellState** grid, char grid_size, char user, 
                 }
             }
 
-            i++;
+            i_static++;
         }
         else {
             x = rand() % grid_size;
@@ -1526,11 +1616,11 @@ char computerTurn(GameState* game, CellState** grid, char grid_size, char user, 
         }
         attempts++;
         if (attempts > max_attempts) {
-            for (int i = 0; i < grid_size; i++) {
-                for (int j = 0; j < grid_size; j++) {
-                    if (grid[i][j] != HIT && grid[i][j] != MISS) {
-                        x = j;
-                        y = i;
+            for (int r = 0; r < grid_size; r++) {
+                for (int c = 0; c < grid_size; c++) {
+                    if (grid[r][c] != HIT && grid[r][c] != MISS) {
+                        x = c;
+                        y = r;
                         goto try_shot;
                     }
                 }
@@ -1542,42 +1632,44 @@ try_shot:
 
     if (grid[y][x] == SHIP) {
         grid[y][x] = HIT;
-        if (game->computer.chanceToHit != 1 && (user == 0 || game->current_user.comp != 1)) {
-            addHitCell(hitListHead, x, y);
-            for (int i = 0; i < MAX_SHIPS; i++) {
-                if ((x >= game->player_ships[i].startX && x < game->player_ships[i].startX + game->player_ships[i].length &&
-                    game->player_ships[i].orientation == 0 && y == game->player_ships[i].startY) ||
-                    (y >= game->player_ships[i].startY && y < game->player_ships[i].startY + game->player_ships[i].length &&
-                        game->player_ships[i].orientation == 1 && x == game->player_ships[i].startX)) {
 
-                    game->player_ships[i].hits++;
-                    if (isShipSunk(game, grid, grid_size, &game->player_ships[i])) {
-                        clearHitList(hitListHead);
-                    }
-                    break;
-                }
-            }
+        Ship* ships_array = NULL;
+        int ships_count = 0;
+
+        if (game->computer.chanceToHit != 1 && (user == 0 || game->current_user.comp != 1)) {
+            ships_array = game->player_ships;
+            ships_count = game->player_ships_count;
         }
         else if (game->computer.chanceToHit != 1 && user == 1) {
-            addHitCell(hitListHead, x, y);
-            for (int i = 0; i < MAX_SHIPS; i++) {
-                if ((x >= game->enemy_ships[i].startX && x < game->enemy_ships[i].startX + game->enemy_ships[i].length &&
-                    game->enemy_ships[i].orientation == 0 && y == game->enemy_ships[i].startY) ||
-                    (y >= game->enemy_ships[i].startY && y < game->enemy_ships[i].startY + game->enemy_ships[i].length &&
-                        game->enemy_ships[i].orientation == 1 && x == game->enemy_ships[i].startX)) {
+            ships_array = game->enemy_ships;
+            ships_count = game->enemy_ships_count;
+        }
 
-                    game->enemy_ships[i].hits++;
-                    if (isShipSunk(game, grid, grid_size, &game->enemy_ships[i])) {
-                        clearHitList(hitListHead);
+        int sunk = 0;
+        if (ships_array) {
+            for (int i = 0; i < ships_count; i++) {
+                if ((x >= ships_array[i].startX && x < ships_array[i].startX + ships_array[i].length &&
+                    ships_array[i].orientation == 0 && y == ships_array[i].startY) ||
+                    (y >= ships_array[i].startY && y < ships_array[i].startY + ships_array[i].length &&
+                        ships_array[i].orientation == 1 && x == ships_array[i].startX)) {
+
+                    ships_array[i].hits++;
+                    if (isShipSunk(game, grid, grid_size, &ships_array[i])) {
+                        sunk = 1;
                     }
                     break;
                 }
             }
         }
-        return 1;
-        if (game->computer.chanceToHit != 1) {
-            hit_found = 1;
+
+        if (!sunk && game->computer.chanceToHit != 1) {
+            addHitNeighbors(game, grid, grid_size, x, y);
         }
+        else if (sunk) {
+            targetHashClear(ht);
+        }
+
+        return 1;
     }
     else if (grid[y][x] == MINE) {
         if (user == 1) {
@@ -1586,22 +1678,22 @@ try_shot:
         else {
             shootCell(game, game->enemy_grid, game->player_grid, x, y, grid_size);
         }
+        return 0;
     }
     else {
         grid[y][x] = MISS;
         return 0;
     }
-    game->player_turn = 1;
-    game->total_turns++;
-    checkFog(game);
 }
 
 void drawGrid(GameState* game, short int x_offset, short int y_offset) {
     SDL_SetRenderDrawColor(game->renderer, 0, 0, 0, 255);
 
     for (int i = 0; i <= game->grid_size; i++) {
-        SDL_RenderLine(game->renderer, x_offset, y_offset + i * game->cell_size, x_offset + game->grid_size * game->cell_size, y_offset + i * game->cell_size);
-        SDL_RenderLine(game->renderer, x_offset + i * game->cell_size, y_offset, x_offset + i * game->cell_size, y_offset + game->grid_size * game->cell_size);
+        SDL_RenderLine(game->renderer, x_offset, y_offset + i * game->cell_size,
+            x_offset + game->grid_size * game->cell_size, y_offset + i * game->cell_size);
+        SDL_RenderLine(game->renderer, x_offset + i * game->cell_size, y_offset,
+            x_offset + i * game->cell_size, y_offset + game->grid_size * game->cell_size);
     }
 }
 
@@ -1624,8 +1716,7 @@ void drawButton(GameState* game, Button button) {
     }
 
     SDL_RenderFillRect(game->renderer, &buttonRect);
-    drawText(game, button.x_pos, button.y_pos, button.label, game->screen_height * 0.015f);
-
+    drawText(game, button.x_pos, button.y_pos, button.label, (int)(game->screen_height * 0.015f));
 }
 
 void drawCell(GameState* game, short int x, short int y, CellState state, short int x_offset, short int y_offset) {
@@ -1695,102 +1786,100 @@ void drawText(GameState* game, short int x_offset, short int y_offset, const cha
     char* utf8_text = win1251_to_utf8(text);
     surface = TTF_RenderText_Solid(game->font, utf8_text, 0, color);
     texture = SDL_CreateTextureFromSurface(game->renderer, surface);
-    short    int x = x_offset - texture->w / 2;
-    SDL_FRect dest_rect = { x, y_offset, 0.0f, 0.0f };
-    dest_rect.w = texture->w;
-    dest_rect.h = texture->h;
+    short int x = x_offset - texture->w / 2;
+    SDL_FRect dest_rect = { (float)x, (float)y_offset, 0.0f, 0.0f };
+    dest_rect.w = (float)texture->w;
+    dest_rect.h = (float)texture->h;
     SDL_RenderTexture(game->renderer, texture, NULL, &dest_rect);
     SDL_DestroySurface(surface);
     SDL_DestroyTexture(texture);
     free(utf8_text);
 }
 
-
 void drawBackground(GameState* game) {
-    SDL_FRect rect = { 0, 0, game->screen_width, game->screen_height };
+    SDL_FRect rect = { 0, 0, (float)game->screen_width, (float)game->screen_height };
     SDL_SetRenderDrawColor(game->renderer, 242, 204, 195, 255);
     SDL_RenderFillRect(game->renderer, &rect);
 }
 
 void renderGame(GameState* game, float delta_time) {
     drawBackground(game);
-    int font_size = (int)(game->screen_height * 0.03f); // Р Р°Р·РјРµСЂ С€СЂРёС„С‚Р° 3% РІС‹СЃРѕС‚С‹ СЌРєСЂР°РЅР°
+    int font_size = (int)(game->screen_height * 0.03f);
 
-    // Р¤РѕРЅ РґР»СЏ С‚РµРєСЃС‚Р° Рё РєРЅРѕРїРѕРє
     SDL_SetRenderDrawColor(game->renderer, 242, 204, 195, 255);
-    SDL_FRect rect = { 0, 0, game->screen_width, (int)(game->screen_height * 0.1f) }; // Р’РµСЂС…РЅРёРµ 10% СЌРєСЂР°РЅР°
+    SDL_FRect rect = { 0, 0, (float)game->screen_width, (float)(game->screen_height * 0.1f) };
     SDL_RenderFillRect(game->renderer, &rect);
-    rect.h = game->screen_height;
-    rect.w = game->menu_button_width + (int)(game->screen_width * 0.05f); // 5% С€РёСЂРёРЅС‹ РґР»СЏ РѕС‚СЃС‚СѓРїР°
+    rect.h = (float)game->screen_height;
+    rect.w = (float)(game->menu_button_width + (int)(game->screen_width * 0.05f));
     SDL_RenderFillRect(game->renderer, &rect);
 
-    // РћС‚СЂРёСЃРѕРІРєР° РёРіСЂРѕРІС‹С… РїРѕР»РµР№ (Р±РµР· РёР·РјРµРЅРµРЅРёР№)
     drawBoard(game, game->player_grid, game->grid_size, game->player_x_offset, game->player_y_offset);
     drawBoard(game, game->enemy_grid, game->grid_size, game->enemy_x_offset, game->enemy_y_offset);
 
-    // РћС‚СЂРёСЃРѕРІРєР° РєРЅРѕРїРѕРє
     for (int i = 0; i < 4; ++i) {
         drawButton(game, game_buttons[i]);
     }
 
-    // РўРµРєСЃС‚ РІ Р·Р°РІРёСЃРёРјРѕСЃС‚Рё РѕС‚ СЂРµР¶РёРјР° РёРіСЂС‹
     if (game->current_mode == PLACING_SHIPS) {
         if (game->current_user.comp != 1) {
-            drawText(game, game->screen_width / 2, (int)(game->screen_height * 0.05f), "Р’С‹Р±РµСЂРёС‚Рµ СЂР°СЃРїРѕР»РѕР¶РµРЅРёРµ СЃРІРѕРёС… РєРѕСЂР°Р±Р»РµР№.", font_size);
+            drawText(game, game->screen_width / 2, (int)(game->screen_height * 0.05f), "Выберите расположение своих кораблей.", font_size);
         }
         else {
-            drawText(game, game->screen_width / 2, (int)(game->screen_height * 0.05f), "РќР°Р¶РјРёС‚Рµ РЅР° Р»СЋР±СѓСЋ РєР»РµС‚РєСѓ РїРѕР»СЏ, С‡С‚РѕР±С‹ РЅР°С‡Р°С‚СЊ РёРіСЂСѓ РљРѕРјРїСЊСЋС‚РµСЂ РїСЂРѕС‚РёРІ РљРѕРјРїСЊСЋС‚РµСЂР°.", font_size);
+            drawText(game, game->screen_width / 2, (int)(game->screen_height * 0.05f), "Нажмите на любую клетку поля, чтобы начать игру Компьютер против Компьютера.", font_size);
         }
     }
     else if (game->current_mode == PLAYING) {
         if (game->turns_count == 0) {
             if (game->current_user.comp != 1) {
-                drawText(game, game->screen_width / 2, (int)(game->screen_height * 0.05f), "Р Р°Р·РјРµС‰РµРЅРёРµ Р·Р°РІРµСЂС€РµРЅРѕ, РЅР°С‡РёРЅР°Р№С‚Рµ РёРіСЂСѓ!", font_size);
+                drawText(game, game->screen_width / 2, (int)(game->screen_height * 0.05f), "Размещение завершено, начинайте игру!", font_size);
             }
             else {
-                drawText(game, game->screen_width / 2, (int)(game->screen_height * 0.05f), "РРіСЂР° РљРѕРјРїСЊСЋС‚РµСЂ РїСЂРѕС‚РёРІ РљРѕРјРїСЊСЋС‚РµСЂР° РЅР°С‡Р°Р»Р°СЃСЊ!", font_size);
+                drawText(game, game->screen_width / 2, (int)(game->screen_height * 0.05f), "Игра Компьютер против Компьютера началась!", font_size);
             }
         }
         else {
             if (game->storm_active) {
-                drawText(game, game->screen_width / 2, (int)(game->screen_height * 0.05f), "РЁС‚РѕСЂРј! РЎР»СѓС‡Р°Р№РЅР°СЏ С‡Р°СЃС‚СЊ РєРѕСЂР°Р±Р»РµР№ СЂР°Р·СЂСѓС€РµРЅР°!", font_size);
+                drawText(game, game->screen_width / 2, (int)(game->screen_height * 0.05f), "Шторм! Случайная часть кораблей разрушена!", font_size);
             }
             else {
                 if (game->player_turn) {
-                    drawText(game, game->screen_width / 2, (int)(game->screen_height * 0.05f), "Р’Р°С€ С…РѕРґ.", font_size);
+                    drawText(game, game->screen_width / 2, (int)(game->screen_height * 0.05f), "Ваш ход.", font_size);
                 }
                 else {
-                    drawText(game, game->screen_width / 2, (int)(game->screen_height * 0.05f), "РҐРѕРґ РєРѕРјРїСЊСЋС‚РµСЂР°.", font_size);
+                    drawText(game, game->screen_width / 2, (int)(game->screen_height * 0.05f), "Ход компьютера.", font_size);
                 }
 
                 if (game->fog_active) {
-                    drawText(game, game->screen_width / 2, (int)(game->screen_height * 0.08f), "РўСѓРјР°РЅ! Р’С‹ РЅРµ РјРѕР¶РµС‚Рµ СѓРІРёРґРµС‚СЊ, РїРѕРїР°Р»Рё Р»Рё РІС‹ РІ РєРѕСЂР°Р±Р»СЊ.", font_size);
+                    drawText(game, game->screen_width / 2, (int)(game->screen_height * 0.08f), "Туман! Вы не можете увидеть, попали ли вы в корабль.", font_size);
                 }
                 else if (game->is_hit == -2) {
-                    drawText(game, game->screen_width / 2, (int)(game->screen_height * 0.08f), "Рѕ РЅРµС‚! РјРёРЅР°", font_size);
+                    drawText(game, game->screen_width / 2, (int)(game->screen_height * 0.08f), "о нет! мина", font_size);
                 }
                 else if (game->is_hit >= 0) {
-                    drawText(game, game->screen_width / 2, (int)(game->screen_height * 0.08f), game->is_hit ? "РџРѕРїР°Р»Рё!" : "РџСЂРѕРјР°С…", font_size);
+                    drawText(game, game->screen_width / 2, (int)(game->screen_height * 0.08f),
+                        game->is_hit ? "Попали!" : "Промах", font_size);
                 }
             }
         }
     }
     else if (game->current_mode == PLACING_RADAR) {
         if (!game->radar_running) {
-            drawText(game, game->screen_width / 2, (int)(game->screen_height * 0.05f), "Р’С‹Р±РµСЂРёС‚Рµ СЂР°СЃРїРѕР»РѕР¶РµРЅРёРµ СЂР°РґР°СЂР°:", font_size);
+            drawText(game, game->screen_width / 2, (int)(game->screen_height * 0.05f), "Выберите расположение радара:", font_size);
         }
         else {
-            drawText(game, game->screen_width / 2, (int)(game->screen_height * 0.05f), "РџСЂРѕРІРµСЂРєР° СЂР°РґР°СЂР°...", font_size);
+            drawText(game, game->screen_width / 2, (int)(game->screen_height * 0.05f), "Проверка радара...", font_size);
             drawRadar(game, delta_time);
         }
     }
     else if (game->current_mode == PLACING_MINES) {
-        drawText(game, game->screen_width / 2, (int)(game->screen_height * 0.05f), "Р’С‹Р±РµСЂРёС‚Рµ СЂР°СЃРїРѕР»РѕР¶РµРЅРёРµ РјРёРЅ:", font_size);
+        drawText(game, game->screen_width / 2, (int)(game->screen_height * 0.05f), "Выберите расположение мин:", font_size);
     }
 
     if (game->current_user.comp != 1) {
-        drawText(game, game->player_x_offset + (game->cell_size * game->grid_size) / 2,
-            game->player_y_offset - (int)(game->screen_height * 0.1f), "Р’Р°С€Рµ РїРѕР»Рµ", font_size);
+        drawText(game,
+            game->player_x_offset + (game->cell_size * game->grid_size) / 2,
+            game->player_y_offset - (int)(game->screen_height * 0.1f),
+            "Ваше поле", font_size);
     }
 
     drawStormEffect(game);
@@ -1799,26 +1888,26 @@ void renderGame(GameState* game, float delta_time) {
 
 void renderMenu(GameState* game) {
     drawBackground(game);
-    int font_size = (int)(game->screen_height * 0.015f); // Р Р°Р·РјРµСЂ С€СЂРёС„С‚Р° 3% РІС‹СЃРѕС‚С‹ СЌРєСЂР°РЅР°
-    int title_font_size = (int)(game->screen_height * 0.04f); // Р—Р°РіРѕР»РѕРІРѕРє 4% РІС‹СЃРѕС‚С‹ СЌРєСЂР°РЅР°
+    int font_size = (int)(game->screen_height * 0.015f);
+    int title_font_size = (int)(game->screen_height * 0.04f);
 
     if (game->menu_state == MAIN_MENU) {
-        drawText(game, game->screen_width / 2, (int)(game->screen_height * 0.1f), "РњРѕСЂСЃРєРѕР№ Р±РѕР№ СЃ Р±РѕРЅСѓСЃР°РјРё", title_font_size);
+        drawText(game, game->screen_width / 2, (int)(game->screen_height * 0.1f), "Морской бой с бонусами", title_font_size);
         for (int i = 0; i < MAIN_BUTTONS_COUNT; ++i) {
             drawButton(game, main_menu_buttons[i]);
         }
         float y_pos = main_menu_buttons[MAIN_BUTTONS_COUNT - 1].y_pos + game->menu_button_height + (int)(game->screen_height * 0.05f);
-        drawText(game, game->screen_width / 2, (int)y_pos, "Рѕ РїСЂРѕРіСЂР°РјРјРµ:", font_size);
+        drawText(game, game->screen_width / 2, (int)y_pos, "о программе:", font_size);
         y_pos += game->screen_height * 0.03f;
-        drawText(game, game->screen_width / 2, (int)y_pos, "Р“РµР№РјРґРµРІС‹: Р”РјРёС‚СЂРёРµРІР° Рђ.Р’. Рё Р’РёРЅРѕРіСЂР°РґРѕРІР° Рђ.Р”.", font_size - 4);
+        drawText(game, game->screen_width / 2, (int)y_pos, "Геймдевы: Дмитриева А.В. и Виноградова А.Д.", font_size - 4);
         y_pos += game->screen_height * 0.03f;
-        drawText(game, game->screen_width / 2, (int)y_pos, "РџСЂРё РЅР°СЃС‚Р°РІРЅРёС‡РµСЃС‚РІРµ РџР°РЅРєРѕРІР° Р. Р”.", font_size - 4);
+        drawText(game, game->screen_width / 2, (int)y_pos, "При наставничестве Панкова И. Д.", font_size - 4);
         y_pos += game->screen_height * 0.03f;
-        drawText(game, game->screen_width / 2, (int)y_pos, "РЎР°РЅРєС‚-РџРµС‚РµСЂР±СѓСЂРіСЃРєРёР№ РџРѕР»РёС‚РµС…РЅРёС‡РµСЃРєРёР№ РЈРЅРёРІРµСЂСЃРёС‚РµС‚ РџРµС‚СЂР° Р’РµР»РёРєРѕРіРѕ", font_size - 4);
+        drawText(game, game->screen_width / 2, (int)y_pos, "Санкт-Петербургский Политехнический Университет Петра Великого", font_size - 4);
         y_pos += game->screen_height * 0.03f;
-        drawText(game, game->screen_width / 2, (int)y_pos, "РРЅСЃС‚РёС‚СѓС‚ РєРѕРјРїСЊСЋС‚РµСЂРЅС‹С… РЅР°СѓРє Рё РєРёР±РµСЂР±РµР·РѕРїР°СЃРЅРѕСЃС‚Рё", font_size - 4);
+        drawText(game, game->screen_width / 2, (int)y_pos, "Институт компьютерных наук и кибербезопасности", font_size - 4);
         y_pos += game->screen_height * 0.03f;
-        drawText(game, game->screen_width / 2, (int)y_pos, "Р’С‹СЃС€Р°СЏ С€РєРѕР»Р° РєРёР±РµСЂР±РµР·РѕРїР°СЃРЅРѕСЃС‚Рё", font_size - 4);
+        drawText(game, game->screen_width / 2, (int)y_pos, "Высшая школа кибербезопасности", font_size - 4);
         y_pos += game->screen_height * 0.03f;
         drawText(game, game->screen_width / 2, (int)y_pos, "2025", font_size - 4);
     }
@@ -1834,13 +1923,13 @@ void renderMenu(GameState* game) {
         drawButton(game, leaderboard_buttons[0]);
     }
     else if (game->menu_state == LEADERBOARD_MENU) {
-        float name_col_x = game->screen_width * 0.3f; // 30% РѕС‚ Р»РµРІРѕРіРѕ РєСЂР°СЏ
-        float score_col_x = game->screen_width * 0.7f; // 70% РѕС‚ Р»РµРІРѕРіРѕ РєСЂР°СЏ
-        float y_pos = game->screen_height * 0.15f; // РќР°С‡Р°Р»Рѕ С‚Р°Р±Р»РёС†С‹ РЅР° 15% РІС‹СЃРѕС‚С‹
-        float row_height = game->screen_height * 0.05f; // Р’С‹СЃРѕС‚Р° СЃС‚СЂРѕРєРё 5%
+        float name_col_x = game->screen_width * 0.3f;
+        float score_col_x = game->screen_width * 0.7f;
+        float y_pos = game->screen_height * 0.15f;
+        float row_height = game->screen_height * 0.05f;
 
-        drawText(game, (int)name_col_x, (int)(y_pos - row_height), "РРјСЏ", font_size);
-        drawText(game, (int)score_col_x, (int)(y_pos - row_height), "РћС‡РєРё", font_size);
+        drawText(game, (int)name_col_x, (int)(y_pos - row_height), "Имя", font_size);
+        drawText(game, (int)score_col_x, (int)(y_pos - row_height), "Очки", font_size);
 
         for (int i = 0; i < MAX_PLAYERS; ++i) {
             if (game->leaderboard[i].name[0] == '\0' || game->leaderboard[i].score == -1) {
@@ -1856,10 +1945,11 @@ void renderMenu(GameState* game) {
     else if (game->menu_state == VICTORY_MENU) {
         if (game->computer_win != 1) {
             if (game->current_user.comp != 1) {
-                drawText(game, game->screen_width / 2, (int)(game->screen_height * 0.25f), "Р’С‹ РїРѕР±РµРґРёР»Рё! Р’РІРµРґРёС‚Рµ РІР°С€Рµ РёРјСЏ РЅР° Р°РЅРіР»РёР№СЃРєРѕРј, РёРЅР°С‡Рµ РІС‹ РЅРµ РїРѕРїР°РґРµС‚Рµ РІ С‚Р°Р±Р»РёС†Сѓ Р»РёРґРµСЂРѕРІ:", font_size);
+                drawText(game, game->screen_width / 2, (int)(game->screen_height * 0.25f),
+                    "Вы победили! Введите ваше имя на английском, иначе вы не попадете в таблицу лидеров:", font_size);
                 SDL_FRect inputRect = {
-                    game->screen_width * 0.5f - (game->screen_width * 0.3f) / 2, // 30% С€РёСЂРёРЅС‹ СЌРєСЂР°РЅР°
-                    game->screen_height * 0.5f - (game->screen_height * 0.05f) / 2, // 5% РІС‹СЃРѕС‚С‹
+                    game->screen_width * 0.5f - (game->screen_width * 0.3f) / 2,
+                    game->screen_height * 0.5f - (game->screen_height * 0.05f) / 2,
                     game->screen_width * 0.3f,
                     game->screen_height * 0.05f
                 };
@@ -1867,15 +1957,15 @@ void renderMenu(GameState* game) {
                 SDL_RenderFillRect(game->renderer, &inputRect);
             }
             else {
-                drawText(game, game->screen_width / 2, (int)(game->screen_height * 0.25f), "РљРѕРјРїСЊСЋС‚РµСЂ 1 РїРѕР±РµРґРёР»!", font_size);
+                drawText(game, game->screen_width / 2, (int)(game->screen_height * 0.25f), "Компьютер 1 победил!", font_size);
             }
         }
         else {
             if (game->current_user.comp != 1) {
-                drawText(game, game->screen_width / 2, (int)(game->screen_height * 0.25f), "РљРѕРјРїСЊСЋС‚РµСЂ РїРѕР±РµРґРёР»!", font_size);
+                drawText(game, game->screen_width / 2, (int)(game->screen_height * 0.25f), "Компьютер победил!", font_size);
             }
             else {
-                drawText(game, game->screen_width / 2, (int)(game->screen_height * 0.25f), "РљРѕРјРїСЊСЋС‚РµСЂ 2 РїРѕР±РµРґРёР»!", font_size);
+                drawText(game, game->screen_width / 2, (int)(game->screen_height * 0.25f), "Компьютер 2 победил!", font_size);
             }
         }
         victory_buttons[0].is_active = true;
@@ -1884,9 +1974,9 @@ void renderMenu(GameState* game) {
 }
 
 CellState** allocBoard(int size) {
-    CellState** board = malloc(sizeof(int*) * size);
+    CellState** board = (CellState**)malloc(sizeof(int*) * size);
     for (int i = 0; i < size; i++) {
-        board[i] = malloc(sizeof(int) * size);
+        board[i] = (CellState*)malloc(sizeof(int) * size);
     }
     return board;
 }
@@ -1957,8 +2047,8 @@ void handleButtonClick(GameState* game, Button* button) {
     case BUTTON_USER_COMP:
         button->is_pressed = !button->is_pressed;
         settings_menu_buttons[6].is_pressed = false;
-        game->current_user.both = 1;
-        game->current_user.both = 0;
+        game->current_user.comp = 0;
+        game->current_user.user = 1;
         break;
 
     case BUTTON_COMP_COMP:
@@ -1984,7 +2074,6 @@ void handleButtonClick(GameState* game, Button* button) {
                 game->player_ships_count = placeShipsRandomly(game, game->player_grid, game->grid_size, game->player_ships);
             }
         }
-
         break;
 
     case BUTTON_RADAR:
@@ -1992,12 +2081,12 @@ void handleButtonClick(GameState* game, Button* button) {
             button->is_pressed = !button->is_pressed;
             game->current_mode = PLACING_RADAR;
         }
-
         break;
 
     case BUTTON_SAVE_GAME:
         game->menu_state = SAVE_MENU;
         game->current_mode = MENU;
+        break;
 
     case BUTTON_SAVE_SLOT:
         button->is_pressed = true;
@@ -2021,7 +2110,7 @@ void handleButtonClick(GameState* game, Button* button) {
 
     case BUTTON_EXIT_MENU:
         saveLeaderBoard(game);
-        printf("РќР°Р¶Р°С‚Р° РєРЅРѕРїРєР° РІС‹С…РѕРґР°\n");
+        printf("Нажата кнопка выхода\n");
         game->current_mode = MENU;
         game->menu_state = MAIN_MENU;
         game->computer_win = 0;
@@ -2056,10 +2145,11 @@ void handleButtonClick(GameState* game, Button* button) {
 }
 
 int check_eng(GameState* game, char* str) {
-    int len = strlen(str);
+    (void)game;
+    int len = (int)strlen(str);
 
     for (int i = 0; i < len; i++) {
-        if (str[i] > 127 || str[i] < 0) return 0;
+        if ((unsigned char)str[i] > 127) return 0;
     }
 
     return 1;
@@ -2067,7 +2157,7 @@ int check_eng(GameState* game, char* str) {
 
 char* handleTextInput(GameState* game) {
     short int max_len = 256;
-    char* output_text = malloc(256);
+    char* output_text = (char*)malloc(256);
     SDL_Event event;
     char input_text[256] = { 0 };
     size_t input_len = 0;
@@ -2122,14 +2212,13 @@ char* handleTextInput(GameState* game) {
 void initGame(GameState* game) {
     float button_width_ratio = MENU_BUTTON_WIDTH_RATIO;
     float button_height_ratio = MENU_BUTTON_HEIGHT_RATIO;
-    float start_x_ratio = 0.1f; // 10% РѕС‚ Р»РµРІРѕРіРѕ РєСЂР°СЏ
-    float start_y_ratio = 0.2f; // 20% РѕС‚ РІРµСЂС…Р°
-    float spacing_ratio = 0.07f; // РћС‚СЃС‚СѓРї 7% РІС‹СЃРѕС‚С‹ СЌРєСЂР°РЅР°
+    float start_x_ratio = 0.1f;
+    float start_y_ratio = 0.2f;
+    float spacing_ratio = 0.07f;
 
     game->menu_button_width = (int)(game->screen_width * button_width_ratio);
     game->menu_button_height = (int)(game->screen_height * button_height_ratio);
 
-    // РљРЅРѕРїРєРё РёРіСЂС‹
     for (int i = 0; i < 4; i++) {
         game_buttons[i].x_pos = (int)(game->screen_width * start_x_ratio);
         game_buttons[i].y_pos = (int)(game->screen_height * (start_y_ratio + i * spacing_ratio));
@@ -2141,9 +2230,14 @@ void initGame(GameState* game) {
 
     game->computer_mines_left = 2;
     game->computer_radars_left = 2;
+
+    /* обнуляем хэш-таблицы целей ИИ при инициализации игры */
+    initTargetTables(game);
 }
 
 void startGame(GameState* game) {
+    initTargetTables(game);
+
     if (game->radars_left > 0) {
         game_buttons[0].is_active = true;
     }
@@ -2163,11 +2257,14 @@ void startGame(GameState* game) {
             game->player_grid[y][x] = MINE;
             game->computer2_mines_left--;
         }
-
     }
     game->current_mode = PLAYING;
 }
+
 void placeRadar(GameState* game, SDL_Event event, short int x_offset, short int y_offset, CellState** grid, char grid_size, float delta_time) {
+    (void)grid;
+    (void)grid_size;
+    (void)delta_time;
     short int mouse_x = event.button.x;
     short int mouse_y = event.button.y;
 
@@ -2177,7 +2274,6 @@ void placeRadar(GameState* game, SDL_Event event, short int x_offset, short int 
 
         game->radar_x = (mouse_x - x_offset) / game->cell_size;
         game->radar_y = (mouse_y - y_offset) / game->cell_size;
-
 
         game->radar_running = 1;
         game->radars_left--;
@@ -2193,6 +2289,8 @@ void placeRadar(GameState* game, SDL_Event event, short int x_offset, short int 
 }
 
 void placeMine(GameState* game, SDL_Event event, short int x_offset, short int y_offset, CellState** grid, char grid_size) {
+    (void)grid;
+    (void)grid_size;
     short int mouse_x = event.button.x;
     short int mouse_y = event.button.y;
 
@@ -2202,7 +2300,6 @@ void placeMine(GameState* game, SDL_Event event, short int x_offset, short int y
 
         short  int x = (mouse_x - x_offset) / game->cell_size;
         short int y = (mouse_y - y_offset) / game->cell_size;
-
 
         if (game->player_grid[y][x] != WATER) {
             return;
@@ -2247,8 +2344,7 @@ char handleInput(GameState* game, SDL_Event event, short int x_offset, short int
                             game->enemy_ships[i].orientation == 1 && gridX == game->enemy_ships[i].startX)) {
 
                         game->enemy_ships[i].hits++;
-                        if (isShipSunk(game, game->enemy_grid, grid_size, &game->enemy_ships[i])) {
-                        }
+                        (void)isShipSunk(game, game->enemy_grid, grid_size, &game->enemy_ships[i]);
                         break;
                     }
                 }
@@ -2276,7 +2372,11 @@ char handleInput(GameState* game, SDL_Event event, short int x_offset, short int
     }
     return 0;
 }
+
 char handleShipPlacement(GameState* game, SDL_Event event, short int x_offset, short int y_offset, CellState** grid, char grid_size, char ch, short int turn_ship) {
+    (void)game;
+    (void)ch;
+    (void)turn_ship;
 
     short int mouseX = event.button.x;
     short int mouseY = event.button.y;
@@ -2288,63 +2388,61 @@ char handleShipPlacement(GameState* game, SDL_Event event, short int x_offset, s
         short int gridY = (mouseY - y_offset) / game->cell_size;
         char count_c = 0;
 
-
         if (grid[gridY][gridX] == WATER) {
-            if (grid[gridY][gridX + 1] == SHIP && grid[gridY][gridX + 2] == SHIP && grid[gridY][gridX + 3] == SHIP && grid[gridY][gridX + 4] == SHIP) {
-                if (grid[gridY][gridX + 5] == SHIP && grid_size == 15) {
+            if (gridX + 4 < grid_size &&
+                grid[gridY][gridX + 1] == SHIP && grid[gridY][gridX + 2] == SHIP &&
+                grid[gridY][gridX + 3] == SHIP && grid[gridY][gridX + 4] == SHIP) {
+                if (gridX + 5 < grid_size && grid[gridY][gridX + 5] == SHIP && grid_size == 15) {
                     count_c += 2;
                 }
                 if (grid_size == 10) {
                     count_c += 2;
                 }
             }
-            if (grid[gridY][gridX - 1] == SHIP && grid[gridY][gridX - 2] == SHIP && grid[gridY][gridX - 3] == SHIP && grid[gridY][gridX - 4] == SHIP) {
-                if (grid[gridY][gridX - 5] == SHIP && grid_size == 15) {
+            if (gridX - 4 >= 0 &&
+                grid[gridY][gridX - 1] == SHIP && grid[gridY][gridX - 2] == SHIP &&
+                grid[gridY][gridX - 3] == SHIP && grid[gridY][gridX - 4] == SHIP) {
+                if (gridX - 5 >= 0 && grid[gridY][gridX - 5] == SHIP && grid_size == 15) {
                     count_c += 2;
                 }
                 if (grid_size == 10) {
                     count_c += 2;
                 }
             }
-            if (gridY != 9 && gridX + 1 != grid_size && grid[gridY + 1][gridX + 1] == SHIP) {
+            if (gridY + 1 < grid_size && gridX + 1 < grid_size && grid[gridY + 1][gridX + 1] == SHIP) {
                 count_c += 2;
             }
-            if (gridY < 6 && grid[gridY + 1][gridX] == SHIP && grid[gridY + 2][gridX] == SHIP && grid[gridY + 3][gridX] == SHIP && grid[gridY + 4][gridX] == SHIP) {
-                if (grid_size == 15 && grid[gridY + 5][gridX] == SHIP) {
+            if (gridY + 4 < grid_size &&
+                grid[gridY + 1][gridX] == SHIP && grid[gridY + 2][gridX] == SHIP &&
+                grid[gridY + 3][gridX] == SHIP && grid[gridY + 4][gridX] == SHIP) {
+                if (grid_size == 15 && gridY + 5 < grid_size && grid[gridY + 5][gridX] == SHIP) {
                     count_c += 2;
                 }
                 if (grid_size == 10) {
                     count_c += 2;
                 }
             }
-            if (gridY > 3 && grid[gridY - 1][gridX] == SHIP && grid[gridY - 2][gridX] == SHIP && grid[gridY - 3][gridX] == SHIP && grid[gridY - 4][gridX] == SHIP) {
-                if (grid_size == 15 && grid[gridY - 5][gridX] == SHIP) {
+            if (gridY - 4 >= 0 &&
+                grid[gridY - 1][gridX] == SHIP && grid[gridY - 2][gridX] == SHIP &&
+                grid[gridY - 3][gridX] == SHIP && grid[gridY - 4][gridX] == SHIP) {
+                if (grid_size == 15 && gridY - 5 >= 0 && grid[gridY - 5][gridX] == SHIP) {
                     count_c += 2;
                 }
                 if (grid_size == 10) {
                     count_c += 2;
                 }
             }
-            if (gridY != 0 && gridX - 1 != -1 && grid[gridY - 1][gridX - 1] == SHIP) {
+            if (gridY > 0 && gridX > 0 && grid[gridY - 1][gridX - 1] == SHIP) {
                 count_c += 2;
             }
-            if (gridY != 9 && gridX - 1 != -1 && grid[gridY + 1][gridX - 1] == SHIP) {
+            if (gridY + 1 < grid_size && gridX > 0 && grid[gridY + 1][gridX - 1] == SHIP) {
                 count_c += 2;
             }
-            if (gridY != 0 && gridX + 1 != grid_size && grid[gridY - 1][gridX + 1] == SHIP) {
+            if (gridY > 0 && gridX + 1 < grid_size && grid[gridY - 1][gridX + 1] == SHIP) {
                 count_c += 2;
             }
             if (count_c < 2) {
                 grid[gridY][gridX] = SHIP;
-
-                game->player_ships[game->player_ships_count].startX = gridX;
-                game->player_ships[game->player_ships_count].startY = gridY;
-                game->player_ships[game->player_ships_count].orientation = 0;
-
-
-                game->player_ships_count++;
-
-
                 return 1;
             }
         }
@@ -2354,11 +2452,11 @@ char handleShipPlacement(GameState* game, SDL_Event event, short int x_offset, s
 }
 
 char shootCell(GameState* game, CellState** shooter, CellState** target, short int x, short int y, char grid_size) {
+    (void)grid_size;
     switch (target[y][x]) {
     case WATER:
         target[y][x] = MISS;
         return 0;
-        break;
     case SHIP:
         target[y][x] = HIT;
         for (int i = 0; i < game->player_ships_count; i++) {
@@ -2367,16 +2465,13 @@ char shootCell(GameState* game, CellState** shooter, CellState** target, short i
                 (y >= game->player_ships[i].startY && y < game->player_ships[i].startY + game->player_ships[i].length &&
                     game->player_ships[i].orientation == 1 && x == game->player_ships[i].startX)) {
                 game->player_ships[i].hits++;
-                if (isShipSunk(game, target, grid_size, &game->player_ships[i])) {
-                }
+                (void)isShipSunk(game, target, grid_size, &game->player_ships[i]);
                 break;
             }
         }
         return 1;
-        break;
     case HIT:
         return 0;
-        break;
     case MINE:
         if (shooter[y][x] == SHIP) {
             target[y][x] = MISS;
@@ -2386,11 +2481,10 @@ char shootCell(GameState* game, CellState** shooter, CellState** target, short i
             target[y][x] = MISS;
             shooter[y][x] = MISS;
         }
-
         game->is_hit = -2;
-
         return 0;
-        break;
+    default:
+        return 0;
     }
 }
 
@@ -2451,7 +2545,7 @@ void initLeaderBoard(GameState* game) {
 void saveLeaderBoard(GameState* game) {
     FILE* file = fopen("leaderboard.txt", "w");
     if (!file) {
-        printf("РќРµ СѓРґР°Р»РѕСЃСЊ СЃРѕС…СЂР°РЅРёС‚СЊ С‚Р°Р±Р»РёС†Сѓ Р»РёРґРµСЂРѕРІ\n");
+        printf("Не удалось сохранить таблицу лидеров\n");
         return;
     }
 
@@ -2494,7 +2588,6 @@ void drawRadar(GameState* game, float delta_time) {
                 switch (game->enemy_grid[y][x]) {
                 case SHIP:
                     SDL_SetRenderDrawColor(game->renderer, 184, 12, 9, 255);
-
                     break;
                 default:
                     SDL_SetRenderDrawColor(game->renderer, 5, 74, 41, 255);
@@ -2544,6 +2637,7 @@ void generateFogTurns(GameState* game) {
 }
 
 void markAroundSunkShip(GameState* game, CellState** grid, int grid_size, Ship ship) {
+    (void)game;
     int startX = ship.startX;
     int startY = ship.startY;
     int endX = ship.startX;
@@ -2569,6 +2663,7 @@ void markAroundSunkShip(GameState* game, CellState** grid, int grid_size, Ship s
 }
 
 char isShipSunk(GameState* game, CellState** grid, int grid_size, Ship* ship) {
+    (void)game;
     if (ship->length == ship->hits) {
         markAroundSunkShip(game, grid, grid_size, *ship);
         return 1;
@@ -2576,8 +2671,8 @@ char isShipSunk(GameState* game, CellState** grid, int grid_size, Ship* ship) {
     return 0;
 }
 
-
 char shipsRemaining(GameState* game, CellState** grid, char grid_size) {
+    (void)game;
     for (int y = 0; y < grid_size; y++) {
         for (int x = 0; x < grid_size; x++) {
             if (grid[y][x] == SHIP) {
@@ -2595,8 +2690,6 @@ void freeBoard(CellState** grid, int size) {
     free(grid);
 }
 
-
-
 void generateStormTurns(GameState* game) {
     for (int i = 0; i < 2; i++) {
         game->storm_turns[i] = (rand() % 21) + 10;
@@ -2609,7 +2702,7 @@ void activateStorm(GameState* game) {
         game->storm_time_elapsed = 0.0f;
         game->current_storm++;
 
-        short int damage_count = rand() % 5 + 1;
+        short int damage_count = (short int)(rand() % 5 + 1);
         for (int i = 0; i < damage_count; i++) {
             short int x, y;
             do {
@@ -2687,6 +2780,3 @@ void drawStormEffect(GameState* game) {
         }
     }
 }
-
-
-//helllo ibks
